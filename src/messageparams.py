@@ -1,0 +1,72 @@
+from binascii import hexlify, unhexlify
+
+def data_from_hexstring(hexstring):
+    databytes = bytearray()
+    databytes.extend([ord(c) for c in unhexlify(hexstring)])
+    
+    return databytes
+
+def hexstring_from_data(databytes):
+    return hexlify(bytes(databytes))
+
+class CycleInfo(object):
+    def __init__(self, src, dest, rate_num, ack, num_frames):
+        self.src = int(src)
+        self.dest = int(dest)
+        self.rate_num = int(rate_num)
+        self.ack = bool(ack)
+        self.num_frames = int(num_frames)
+        
+    # This allows us to see if two cycleinfo objects match
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+        
+class DrqParams(object):
+    def __init__(self, src, dest, ack, num_bytes, frame_num):
+        self.src = int(src)
+        self.dest = int(dest)
+        self.ack = bool(ack)
+        self.num_bytes = int(num_bytes)
+        self.frame_num = int(frame_num)
+        
+
+class DataFrame(object):
+    def __init__(self, src, dest, ack, frame_num, data):
+        self.src = src
+        self.dest = dest
+        self.ack = ack
+        self.frame_num = frame_num
+        self.data = data
+        
+class Packet(object):
+    def __init__(self, cycleinfo, frames=None):
+        self.cycleinfo = cycleinfo
+        
+        if frames != None:
+            self.frames = frames
+        else:
+            self.frames = []
+            
+class CycleStats(object):
+    def __init__(self, ):
+        pass
+        
+class PacketRate(object):
+    def __init__(self, name, number, framesize, numframes):
+        self.name = name
+        self.number = number
+        self.framesize = framesize
+        self.numframes = numframes
+    
+    def getpacketsize(self):
+        return self.framesize * self.numframes
+        
+    maxpacketsize = property(getpacketsize)
+
+Rates = {0:PacketRate('FH-FSK', 0, 32, 1),
+         1:PacketRate('BCH 128:8', 1, 64, 3),
+         2:PacketRate('DSS 1/15 (64B frames)', 2, 64, 3),
+         3:PacketRate('DSS 1/7', 3, 256, 2),
+         4:PacketRate('BCH 64:10', 4, 256, 2),
+         5:PacketRate('Hamming 14:9', 5, 256, 8),
+         6:PacketRate('DSS 1/15 (32B frames)', 6, 32, 6)}
