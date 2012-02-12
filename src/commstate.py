@@ -6,40 +6,42 @@ Created on Jan 25, 2012
 
 from messageparams import Packet, Rates
 
+import logging
+
 class CommState(object):
     '''
     classdocs
     '''
     def entering(self):
-        print("Entering new state: " + str(self))
+        self.modem.daemonlog.debug("Entering new state: " + str(self))
         pass
         
     def got_cacyc(self, cycleinfo):
-        print("[" + str(self) + "]: Got CACYC")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CACYC")
         pass
     def got_catxf(self):
-        print("[" + str(self) + "]: Got CATXF")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CATXF")
         pass
     def got_cadrq(self, drqparams):
-        print("[" + str(self) + "]: Got CADRQ")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CADRQ")
         pass
     def got_carx(self, rxdataframe):
-        print("[" + str(self) + "]: Got CARXD")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CARXD")
         pass
     def got_badcrc(self):
-        print("[" + str(self) + "]: Got Bad CRC")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got Bad CRC")
         pass
     def got_datatimeout(self, frame_num):
-        print("[" + str(self) + "]: Got DATA_TIMEOUT")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got DATA_TIMEOUT")
         pass
     def got_packettimeout(self):
-        print("[" + str(self) + "]: Got PACKET_TIMEOUT")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got PACKET_TIMEOUT")
         pass
     def got_pskerror(self, message):
-        print("[" + str(self) + "]: Got PSK Error")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got PSK Error")
         pass
     def got_carev(self):
-        print("[" + str(self) + "]: Got CAREV")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CAREV")
         # If we got a CAREV, we are done with any and all modem cycles.
         if self.modem.current_txpacket != None:
             self.modem.on_packettx_failed()
@@ -48,14 +50,14 @@ class CommState(object):
         
         pass
     def sent_cccyc(self, cycleinfo):
-        print("[" + str(self) + "]: Sent CCCYC")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Sent CCCYC")
         pass
     def timeout(self):
-        print("[" + str(self) + "]: Timed out")
+        self.modem.daemonlog.debug("[" + str(self) + "]: Timed out")
         pass
     
     def send_packet(self, packet):
-        print "Trying to send packet while modem is busy."
+        self.modem.daemonlog.warn("Trying to send packet while modem is busy.")
     
 
     def __init__(self, comms):
@@ -100,7 +102,7 @@ class Idle(CommState):
             self.modem.changestate(WaitingForRxData)
             
     def send_packet(self, packet):
-        print "Sending packet from Idle"
+        self.modem.daemonlog.info("Sending packet from Idle")
         
         # copy the packet to the output buffer
         self.modem.current_txpacket = packet
@@ -158,7 +160,7 @@ class WaitingForCacyc(CommState):
                 self.modem.changestate(WaitingForRxData)
                 
         # if we got here, something is wrong
-        print("Impossible state in WaitingForCacyc.got_cacyc")
+        #self.modem.daemonlog.warn("Impossible state in WaitingForCacyc.got_cacyc")
                     
     def timeout(self):
         super(WaitingForCacyc, self).timeout()
@@ -326,12 +328,12 @@ class WaitingForCiTxf(CommState):
         # Note that the modem might not really be done transmitting.
         
         # Were we in the middle of an FSK downlink?
-        if self.comms.current_txpacket != None:
-            self.comms.on_packettx_failed()
+        if self.modem.current_txpacket != None:
+            self.modem.on_packettx_failed()
         else:
-            self.comms.on_uplink_failed()
+            self.modem.on_uplink_failed()
         
-        self.comms.changestate(Idle)
+        self.modem.changestate(Idle)
         
     def __str__(self):
         return "Waiting for CI CATXF"

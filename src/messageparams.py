@@ -10,12 +10,16 @@ def hexstring_from_data(databytes):
     return hexlify(bytes(databytes))
 
 class CycleInfo(object):
-    def __init__(self, src, dest, rate_num, ack, num_frames):
+    def __init__(self, src, dest, rate_num, ack=False, num_frames=None):
         self.src = int(src)
         self.dest = int(dest)
         self.rate_num = int(rate_num)
         self.ack = bool(ack)
-        self.num_frames = int(num_frames)
+        
+        if num_frames == None:
+            self.num_frames = Rates[rate_num].numframes
+        else:
+            self.num_frames = int(num_frames)
         
     # This allows us to see if two cycleinfo objects match
     def __eq__(self, other):
@@ -36,7 +40,7 @@ class DataFrame(object):
         self.dest = dest
         self.ack = ack
         self.frame_num = frame_num
-        self.data = data
+        self.data = bytearray(data)
         
 class Packet(object):
     def __init__(self, cycleinfo, frames=None):
@@ -46,6 +50,12 @@ class Packet(object):
             self.frames = frames
         else:
             self.frames = []
+            
+    def append_framedata(self, framedata):
+        #TODO: Make sure we have room for another frame, and that the data fits in the frame.
+        newframe = DataFrame(self.cycleinfo.src, self.cycleinfo.dest, self.cycleinfo.ack, 
+                             (len(self.frames) + 1), framedata)
+        self.frames.append(newframe)
             
 class CycleStats(object):
     def __init__(self, ):

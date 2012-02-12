@@ -8,8 +8,8 @@ from modem import Micromodem
 from time import sleep
 
 if __name__ == '__main__':
-    um = Micromodem()
-    um.connect('COM1', 19200)
+    um = Micromodem(logpath='c:/temp')
+    um.connect('COM11', 19200)
     
     testdata = bytearray([0, 1, 2, 3, 4, 5, 6, 7])
     

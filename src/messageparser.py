@@ -1,8 +1,10 @@
 from messageparams import CycleInfo, DrqParams, DataFrame, data_from_hexstring, hexstring_from_data
+from cyclestats import CycleStats
 import commstate
 from binascii import hexlify, unhexlify
 import sys
 import traceback
+import os
 
 class MessageParser:
     def __init__(self, modem):
@@ -14,9 +16,14 @@ class MessageParser:
     def parse(self, msg):
         try:
             func = getattr(self, msg['type'])
-            return func(msg)
+        except AttributeError, e:
+            self.modem.daemonlog.warn('Unrecognized message: ' + str(msg['type']))
+            func = None
+        try:
+            if func != None:
+                return func(msg)
         except Exception, e:
-            print ("Exception when parsing: ", sys.exc_info()[0])
+            self.modem.daemonlog.error("Exception when parsing: " + str(sys.exc_info()[0]))
             traceback.print_exc()
         
     def CACFG(self, msg):
@@ -88,7 +95,59 @@ class MessageParser:
     def CATXP(self, msg):
         pass
     
-         
+    def CARSP(self, msg):
+        '''Echo of CCRSP command'''
+        pass
+    
+    def CAXST(self, msg):
+        '''Transmit Statistics message'''
+        pass
+    
+    def CAMPC(self, msg):
+        '''Ping command echo'''
+        pass
+    
+    def CATXD(self, msg):
+        '''CCTXD echo'''
+        
+    def CACLK(self, msg):
+        # $CACLK,yyyy,MM,dd,HH,mm,ss
+        args = msg["params"]
+        datestr = str(args[1]) + str(args[2]) + str(args[3]) + str(args[4]) + str(args[0]) + '.' + str(args[5])
+        if self.modem.set_host_clock_flag == True:
+            self.modem.daemonlog.warn("Setting host clock to: " + datestr)
+            #TODO: This probably shouldn't be part of this module.
+            os.system('/bin/date -u ' + datestr)
+            self.modem.set_host_clock_flag = False
+    
+    def CACST(self, msg):
+        mode = int(msg['params'][0])
+        # Discard any PACKET_TIMEOUT CSTs for now
+        if mode == 2:
+            self.modem.daemonlog.warn("Got Packet Timeout CST")
+            return
+        
+        toa = str(msg['params'][1])
+        mfd_pow = int(msg['params'][4])
+        mfd_ratio = int(msg['params'][5])
+        rate_num = int(msg['params'][12])
+        psk_error = int(msg['params'][15])
+        bad_frames_num = int(msg['params'][18])
+        snr_in = float(msg['params'][20])
+        snr_out = float(msg['params'][21])
+        snr_sym = float(msg['params'][22])
+        mse = float(msg['params'][23])
+        dop = float(msg['params'][25])
+        noise = int(msg['params'][26])
+        
+        # Make a CycleStats
+        cst = CycleStats.from_values(toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, 
+                                     snr_in, snr_out, snr_sym, mse, dop, noise)
+        
+        # Raise the event
+        self.modem.on_cst(cst)
+        
+        
     
         
         

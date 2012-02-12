@@ -5,6 +5,7 @@ Created on Jan 23, 2012
 '''
 import datetime
 import bitstring
+import calendar
 
 
 def clampfixed(n, minn, maxn, decimalplaces):
@@ -40,43 +41,124 @@ class CycleStats(object):
     '''
     classdocs
     '''
+    fields = ('timestamp', 'mfd_pow', 'mfd_ratio', 'rate_num', 'psk_error', 'bad_frames_num', 
+              'snr_in', 'snr_out', 'snr_sym', 'mse', 'dop', 'noise')
+        
+    packfmtstr = '''uint:24=timestamp,
+                    uint:10=mfd_pow,
+                    uint:16=mfd_ratio,
+                    uint:3=rate_num,
+                    uint:3=psk_error,
+                    uint:3=bad_frames_num,
+                    uint:9=snr_in,
+                    uint:8=snr_out,
+                    uint:5=snr_sym,
+                    uint:9=mse,
+                    uint:6=dop,
+                    uint:8=noise
+                    '''
+    ts_epoch = datetime.datetime(2012, 2, 1)
+    
+    packed_size = 13
+    
     
 
-
-    def __init__(self, toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, snr_in, snr_out, snr_sym, 
-                 mse, dop, noise, date=None):
-        '''
-        Constructor
-        '''
+    def __init__(self, valuesdict):
+        # make sure that the dictionary is complete
+        for field in CycleStats.fields:
+            if not valuesdict.has_key(field):
+                raise KeyError("Invalid dictionary passed to CycleStats constructor.")
         
-        if date == None:
-            date = datetime.date.today()
+        self.values = valuesdict    
+    
+    def get_packed_timestamp(self):
+        return (calendar.timegm(self.values['timestamp'].timetuple()) - 
+                calendar.timegm(CycleStats.ts_epoch.timetuple()))
         
-        self.date = date
-        self.toa = toa
-        self.mfd_pow = mfd_pow
-        self.mfd_ratio = mfd_ratio
-        self.rate_num = rate_num
-        self.psk_error = psk_error
-        self.bad_frames_num = bad_frames_num
-        self.snr_in = decimal(snr_in)
-        self.snr_out = snr_out
-        self.snr_sym = snr_sym
-        self.mse = mse
-        self.dop = dop
-        self.noise = noise
+    packed_timestamp = property(get_packed_timestamp)
         
     def to_packed(self):
         # Make a neat, binary representation.
         # First, turn the values into range-limited fixed point values.
         
         
+        values = self.values
         
-    def from_packed(self):
+        clampvals = dict.fromkeys(CycleStats.fields)
         
-        pass
+        clampvals['timestamp'] = (calendar.timegm(values['timestamp'].timetuple()) - 
+                                  calendar.timegm(CycleStats.ts_epoch.timetuple()))
+        
+        clampvals['mfd_pow'] = clampfixed(values['mfd_pow'], -30, 40, 0)
+        clampvals['mfd_ratio'] = clampfixed(values['mfd_ratio'], 0, 65535, 0)
+        clampvals['rate_num'] = values['rate_num']
+        clampvals['psk_error'] = values['psk_error']
+        clampvals['bad_frames_num'] = values['bad_frames_num']
+        clampvals['snr_in'] = clampfixed(values['snr_in'], -10, 30, 1)
+        clampvals['snr_out'] = clampfixed(values['snr_out'], 0, 25, 1)
+        clampvals['snr_sym'] = clampfixed(values['snr_sym'], 0, 30, 0)
+        clampvals['mse'] = clampfixed(values['mse'], -25, 5, 1)
+        clampvals['dop'] = clampfixed(values['dop'], -3, 3, 1)
+        clampvals['noise'] = clampfixed(values['noise'], 0, 255, 0)
+        
+        # Now, pack it into a bitstring.
+        bs = bitstring.pack(CycleStats.packfmtstr, **clampvals)
+        
+        
+        return bs
+        
+    @classmethod    
+    def from_packed(cls, databytes):
+        bs = bitstring.BitStream(databytes)
+        packedlist = bs.unpack(CycleStats.packfmtstr)
+        
+        values = dict.fromkeys(CycleStats.fields)
+        
+        values['timestamp'] = datetime.datetime.fromtimestamp(
+                                packedlist[0] + calendar.timegm(CycleStats.ts_epoch.timetuple()))
+        values['mfd_pow'] = unclampfixed(packedlist[1], -30, 0)
+        values['mfd_ratio'] = unclampfixed(packedlist[2], 0, 0)
+        values['rate_num'] = packedlist[3]
+        values['psk_error'] = packedlist[4]
+        values['bad_frames_num'] = packedlist[5]
+        values['snr_in'] = unclampfixed(packedlist[6], -10, 1)
+        values['snr_out'] = unclampfixed(packedlist[7], 0, 1)
+        values['snr_sym'] = unclampfixed(packedlist[8], 0, 0)
+        values['mse'] = unclampfixed(packedlist[9], -25, 1)
+        values['dop'] = unclampfixed(packedlist[10], -3, 1)
+        values['noise'] = unclampfixed(packedlist[11], 0, 0)
+        
+        self = CycleStats(values)
+        return self
     
-
+    @classmethod
+    def from_values(cls, toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, snr_in, snr_out, snr_sym, 
+                 mse, dop, noise, date=None):
+                
+        
+        
+        if date == None:
+            date = datetime.date.today()
+        
+        values = dict.fromkeys(CycleStats.fields)
+        
+        values['timestamp'] = datetime.datetime.combine(date,
+                                         datetime.time(int(toa[0:2]), int(toa[2:4]), int(toa[4:6])))
+                                                 
+        values['mfd_pow'] = mfd_pow
+        values['mfd_ratio'] = mfd_ratio
+        values['rate_num'] = rate_num
+        values['psk_error'] = psk_error
+        values['bad_frames_num'] = bad_frames_num
+        values['snr_in'] = float(snr_in)
+        values['snr_out'] = snr_out
+        values['snr_sym'] = snr_sym
+        values['mse'] = mse
+        values['dop'] = dop
+        values['noise'] = noise
+        
+        self = CycleStats(values)
+        return self
     
         
                 
