@@ -11,6 +11,7 @@ from bitstring import BitStream
 from time import sleep
 import logging
 import pickle
+import os
 
 class BottomNode(object):
     
@@ -28,6 +29,7 @@ class BottomNode(object):
         self.hibernate_minutes = 60 * 6
         self.hibernate_delay_secs = 15
         self.reply_timeout_secs = 180
+        self.wakecount = 0
         
         self.start_log()
         
@@ -41,6 +43,9 @@ class BottomNode(object):
         
         
     def start(self):
+        # Keep track of wakes
+        self.update_wakecount()
+        
         # Connect to the modem
         self.um.connect(self.modempath, 19200)
         
@@ -73,10 +78,14 @@ class BottomNode(object):
         self.write_csts()
         
         # Now hibernate.
-        self.logger.info("Hibernating now...")
+        self.logger.info("Starting hibernate: hib_mins={1} delay={2}".format(self.hibernate_minutes, self.hibernate_delay_secs))
         self.um.start_hibernate(self.hibernate_minutes, self.hibernate_delay_secs)
-        sleep(2)
+        sleep(1)
         
+        # We're done.  Time to shutdown.
+        self.logger.info("Shutting down...")
+        os.system('shutdown now')
+        sleep(10)
     
     def on_cst(self, cst):
         if not isinstance(cst, CycleStats):
@@ -194,9 +203,28 @@ class BottomNode(object):
         self.um.send_packet(thispacket)
         
         
-        
-                
-                
+    def update_wakecount(self):
+        # Check our wake count. 
+        try:
+            if (os.path.exists('/var/log/wakecount')):
+                wakefile = open('/var/log/wakecount', 'r+')
+                wakecountstr = wakefile.read()
+                self.wakecount = int(wakecountstr) + 1
+            else:
+                wakefile = open('/var/log/wakecount', 'w')
+                self.logger.debug('No wakecount found, setting to 1')
+                self.wakecount = 1
+            # Now, update the saved wakecount.
+            wakefile.seek(0)
+            wakefile.write(str(self.wakecount))
+            wakefile.truncate()
+            wakefile.close()
+        except:
+            self.logger.error("Error reading/writing wakecount, set to 65535")
+            self.wakecount = 65535
+            
+        self.logger.info("This is wakeup # " + str(self.wakecount))            
+                        
                 
             
         
