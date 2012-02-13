@@ -46,10 +46,10 @@ class CycleStats(object):
         
     packfmtstr = '''uint:24=timestamp,
                     uint:10=mfd_pow,
-                    uint:16=mfd_ratio,
+                    uint:15=mfd_ratio,
                     uint:3=rate_num,
                     uint:3=psk_error,
-                    uint:3=bad_frames_num,
+                    uint:4=bad_frames_num,
                     uint:9=snr_in,
                     uint:8=snr_out,
                     uint:5=snr_sym,
@@ -72,8 +72,8 @@ class CycleStats(object):
         self.values = valuesdict    
     
     def get_packed_timestamp(self):
-        return (calendar.timegm(self.values['timestamp'].timetuple()) - 
-                calendar.timegm(CycleStats.ts_epoch.timetuple()))
+        return (calendar.timegm(self.values['timestamp'].utctimetuple()) - 
+                calendar.timegm(CycleStats.ts_epoch.utctimetuple()))
         
     packed_timestamp = property(get_packed_timestamp)
         
@@ -86,14 +86,13 @@ class CycleStats(object):
         
         clampvals = dict.fromkeys(CycleStats.fields)
         
-        clampvals['timestamp'] = (calendar.timegm(values['timestamp'].timetuple()) - 
-                                  calendar.timegm(CycleStats.ts_epoch.timetuple()))
+        clampvals['timestamp'] = self.get_packed_timestamp()
         
         clampvals['mfd_pow'] = clampfixed(values['mfd_pow'], -30, 40, 0)
-        clampvals['mfd_ratio'] = clampfixed(values['mfd_ratio'], 0, 65535, 0)
-        clampvals['rate_num'] = values['rate_num']
-        clampvals['psk_error'] = values['psk_error']
-        clampvals['bad_frames_num'] = values['bad_frames_num']
+        clampvals['mfd_ratio'] = clampfixed(values['mfd_ratio'], 0, 32767, 0)
+        clampvals['rate_num'] = clampfixed(values['rate_num'], -1, 6, 0)
+        clampvals['psk_error'] = clampfixed(values['psk_error'], 0, 7, 0)
+        clampvals['bad_frames_num'] = clampfixed(values['bad_frames_num'], 0, 8, 0)
         clampvals['snr_in'] = clampfixed(values['snr_in'], -10, 30, 1)
         clampvals['snr_out'] = clampfixed(values['snr_out'], 0, 25, 1)
         clampvals['snr_sym'] = clampfixed(values['snr_sym'], 0, 30, 0)
@@ -114,13 +113,13 @@ class CycleStats(object):
         
         values = dict.fromkeys(CycleStats.fields)
         
-        values['timestamp'] = datetime.datetime.fromtimestamp(
-                                packedlist[0] + calendar.timegm(CycleStats.ts_epoch.timetuple()))
+        values['timestamp'] = datetime.datetime.utcfromtimestamp(
+                                packedlist[0] + calendar.timegm(CycleStats.ts_epoch.utctimetuple()))
         values['mfd_pow'] = unclampfixed(packedlist[1], -30, 0)
         values['mfd_ratio'] = unclampfixed(packedlist[2], 0, 0)
-        values['rate_num'] = packedlist[3]
-        values['psk_error'] = packedlist[4]
-        values['bad_frames_num'] = packedlist[5]
+        values['rate_num'] = unclampfixed(packedlist[3], -1, 0)
+        values['psk_error'] = unclampfixed(packedlist[4], 0, 7)
+        values['bad_frames_num'] = unclampfixed(packedlist[5], 0, 8)
         values['snr_in'] = unclampfixed(packedlist[6], -10, 1)
         values['snr_out'] = unclampfixed(packedlist[7], 0, 1)
         values['snr_sym'] = unclampfixed(packedlist[8], 0, 0)

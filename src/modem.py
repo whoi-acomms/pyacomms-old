@@ -305,8 +305,8 @@ class Micromodem(Serial):
         msg = {'type':'CCCFG', 'params':[str(name), str(value)]}
         self.rawWrite(msg)
         
-    def start_hibernate(self, num_minutes):
-        msg = {'type':'CCMSC', 'params':[self.id, self.id, num_minutes]}
+    def start_hibernate(self, num_minutes, delay_secs=0):
+        msg = {'type':'CCMSC', 'params':[self.id, self.id, num_minutes, delay_secs]}
         self.rawWrite(msg)
     
         

@@ -15,42 +15,67 @@ import pickle
 class BottomNode(object):
     
     def __init__(self):
-        self.logpath = '/var/log/'
-        self.cstpicklepath = '/var/cst.dat'
-        self.modempath = '/dev/ttyS0'
+        #self.logpath = '/var/log/'
+        self.logpath = 'c:/temp/glider'
+        
+        #self.cstpicklepath = '/var/cst.dat'
+        self.cstpicklepath = 'c:/temp/glider/cst.dat'
+        
+        #self.modempath = '/dev/ttyS0'
+        self.modempath = 'COM11'
+        
         self.gliderid = 10
         self.hibernate_minutes = 60 * 6
+        self.hibernate_delay_secs = 15
+        self.reply_timeout_secs = 180
+        
+        self.start_log()
         
         self.csts = {}
+        self.csts[0] = CycleStats.from_values('000000', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, CycleStats.ts_epoch)
         
         self.read_csts()
         
-        self.um = Micromodem()
+        self.um = Micromodem(logpath=self.logpath)
+        
+        
         
     def start(self):
         # Connect to the modem
-        um.connect(self.modempath, 19200)
+        self.um.connect(self.modempath, 19200)
         
         # Attach to the events.
-        um.cst_listeners.append(self.on_cst)
+        self.um.cst_listeners.append(self.on_cst)
+        self.um.rxframe_listeners.append(self.on_rxframe)
         
         # Wait for the settings to be read.
-        sleep(2)
+        sleep(1)
+        
+        # Set the clock
+        self.um.set_host_clock_from_modem()
+        sleep(1)
         
         # Now, send up as many CST data as we can, using one packet of each rate that we like
         self.send_cst_data(1)
         sleep(20)
-        self.send_cst_data(2)
+        # self.send_cst_data(2)
         sleep(20)
-        self.send_cst_data(4)
+        #self.send_cst_data(4)
         sleep(20)
-        self.send_cst_data(5)
+        #self.send_cst_data(5)
         
         # Wait 3 minutes for replies from the WaveGlider
-        sleep(180)
+        sleep(self.reply_timeout_secs)
+        
+        # Save the CSTS before we turn off
+        self.logger.info("Saving CSTs")
+        #TODO NOW Put this in a try/catch block
+        self.write_csts()
         
         # Now hibernate.
-        self.um.start_hibernate(self.hibernate_minutes)
+        self.logger.info("Hibernating now...")
+        self.um.start_hibernate(self.hibernate_minutes, self.hibernate_delay_secs)
+        sleep(2)
         
     
     def on_cst(self, cst):
@@ -62,24 +87,38 @@ class BottomNode(object):
         
     def on_rxframe(self, dataframe):
         # Make sure this is a frame for us before we do anything.
-        if dataframe.dest != self.modem.id:
+        if dataframe.dest != self.um.id:
             self.logger.info("Overheard data frame for " + str(dataframe.dest))
             return
         
         # Now, see if it was an acknowledgment of CST data
-        if dataframe.framedata[0] == 0x31:
-            if dataframe.framedata[1] == 0x21:
+        if dataframe.data[0] == 0x31:
+            if dataframe.data[1] == 0x21:
+                
                 # CST ack frame
                 # Following the header are a sequence of packed CST timestamps.
-                ackbitstream = BitStream(dataframe.framedata[2:])
-                acklist = ackbitstream.readlist('uint:24')
+                ackbitstream = BitStream(dataframe.data[2:])
+                acklist = []
+                while ackbitstream.pos < ackbitstream.length:
+                    acklist.append(ackbitstream.read('uint:24'))
+                    
+                # Remove duplicates from the ACK list
+                acklist = list(set(acklist))
                 
+                self.logger.debug("Got " + str(len(acklist)) + " CST ACKs")
+                
+                removecount = 0
                 # When we get an ack, remove the corresponding CST from the dictionary
                 for ackitem in acklist:
-                    if ackitem in self.csts:
-                        self.logger.info("Got ACK for " + str(ackitem))
-                        del self.csts[ackitem]       
-        
+                    self.logger.debug("=> ACK for " + str(ackitem))
+                    if self.csts.has_key(ackitem):
+                        #self.logger.info("Got ACK for " + str(ackitem))
+                        del self.csts[ackitem]
+                        removecount += 1
+                        print removecount
+                
+                self.logger.info("Glider Acknowledged " + str(removecount) + " new CSTs")
+                        
     
     def start_log(self):
         # Configure logging
@@ -96,10 +135,20 @@ class BottomNode(object):
         self.logger.addHandler(ch)
         
     def read_csts(self):
-        self.csts = pickle.load(self.cstpicklepath)
+        try:
+            with open(self.cstpicklepath, 'r') as cstpicklefile:
+                self.csts = pickle.load(cstpicklefile)
+        except:
+            self.logger.error('Error Reading CST Pickle File')
+            
+        self.logger.debug("Read " + str(len(self.csts)) + " unacknowledged CSTs from file.")
         
     def write_csts(self):
-        pickle.dump(self.csts, self.cstpicklepath)
+        with open(self.cstpicklepath, 'w') as cstpicklefile:
+            pickle.dump(self.csts, cstpicklefile)
+            
+        self.logger.debug("Wrote " + str(len(self.csts)) + " unacknowledged CSTS to file.")
+        
         
     
         
@@ -109,14 +158,14 @@ class BottomNode(object):
         If there are no unacknowledged CST messages, send test frames to ensure that we have full packets.'''
         
         # Make a packet
-        thispacket = Packet(CycleInfo(self.modem.id, self.gliderid, rate_num))
+        thispacket = Packet(CycleInfo(self.um.id, self.gliderid, rate_num))
         
         # how many CSTs do we have to send?
         if len(self.csts) == 0:
             # We have none, so just send test data (with a special header so that we know to respond)
             for frame_num in range(Rates[rate_num].numframes):
                 thispacket.append_framedata([0x31, 0x12])
-            self.modem.send_packet(thispacket)
+            self.um.send_packet(thispacket)
             return
         
         # We have something to send.  Loop through our CSTs as many times as we can.
@@ -130,17 +179,19 @@ class BottomNode(object):
         
         
         for frame_num in range(Rates[rate_num].numframes):
-            framedata = bytearray(0x31, 0x11)
+            framedata = bytearray([0x31, 0x11])
             for i in range(csts_per_frame):
                 currentidx = currentidx % len(cst_queue_keys)
-                framedata.extend(self.csts[cst_queue_keys[currentidx]].tobytes())
+                packedcst = self.csts[cst_queue_keys[currentidx]].to_packed()
+                self.logger.debug("Sending CST: " + str(cst_queue_keys[currentidx]))
+                framedata.extend(packedcst.bytes)
                 currentidx += 1
                 
             # Add this frame to the packet
             thispacket.append_framedata(framedata)
         
         # Send the packet we just created.
-        self.modem.send_packet(thispacket)
+        self.um.send_packet(thispacket)
         
         
         
@@ -155,16 +206,7 @@ class BottomNode(object):
 
 
 if __name__ == '__main__':
-    # Connect to the modem
-    um = Micromodem()
-    um.connect('/dev/ttyS0', 19200)
-    
-    # Attach to the events.
-    um.cst_listeners.append()
-    
-    # Wait for the settings to be read.
-    sleep(2)
-    
-    # Now, send up as many CST data as we can
+    bn = BottomNode()
+    bn.start()
     
     

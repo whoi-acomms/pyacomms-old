@@ -103,6 +103,10 @@ class MessageParser:
         '''Transmit Statistics message'''
         pass
     
+    def CARXP(self, msg):
+        '''Probe received (RX pending)'''
+        pass
+    
     def CAMPC(self, msg):
         '''Ping command echo'''
         pass
