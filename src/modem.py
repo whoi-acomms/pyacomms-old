@@ -48,6 +48,7 @@ class Micromodem(Serial):
         
         self.id = -1
         self.asd = False
+        self.pcm_on = False
         
         # state tracking variables
         self.current_rx_frame_num = 1
@@ -103,7 +104,7 @@ class Micromodem(Serial):
                         
                         for func in self.listeners: func(msg) # Pass on the message.
                     except ChecksumException:
-                        self.daemonlog.warn("NMEA Checksum Error: ", msg.strip())
+                        self.daemonlog.warn("NMEA Checksum Error: ", msg.rstrip('\r\n'))
                 
                 # Now, transmit anything we have in the outgoing queue.
                 try:

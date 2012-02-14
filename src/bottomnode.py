@@ -16,27 +16,29 @@ import os
 class BottomNode(object):
     
     def __init__(self):
-        #self.logpath = '/var/log/'
-        self.logpath = 'c:/temp/glider'
+        self.logpath = '/var/log/'
+        #self.logpath = 'c:/temp/glider/'
         
-        #self.cstpicklepath = '/var/cst.dat'
-        self.cstpicklepath = 'c:/temp/glider/cst.dat'
+        self.cstpicklepath = '/var/log/cst.dat'
+        #self.cstpicklepath = 'c:/temp/glider/cst.dat'
         
-        #self.modempath = '/dev/ttyS0'
-        self.modempath = 'COM11'
+        
+        self.modempath = '/dev/ttyS0'
+        #self.modempath = 'COM11'
         
         self.gliderid = 10
-        self.hibernate_minutes = 60 * 6
+        self.hibernate_minutes = 6 * 60
         self.hibernate_delay_secs = 15
-        self.reply_timeout_secs = 180
+        self.reply_timeout_secs = 5 * 60
         self.wakecount = 0
         
         self.start_log()
         
         self.csts = {}
-        self.csts[0] = CycleStats.from_values('000000', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, CycleStats.ts_epoch)
+        self.csts[0] = CycleStats.from_values('000000', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, False, CycleStats.ts_epoch)
         
         self.read_csts()
+        self.update_wakecount()
         
         self.um = Micromodem(logpath=self.logpath)
         
@@ -44,7 +46,6 @@ class BottomNode(object):
         
     def start(self):
         # Keep track of wakes
-        self.update_wakecount()
         
         # Connect to the modem
         self.um.connect(self.modempath, 19200)
@@ -56,6 +57,14 @@ class BottomNode(object):
         # Wait for the settings to be read.
         sleep(1)
         
+        # Set PCM appropriately.
+        if (bool(self.wakecount % 2)):
+            # PCM = 15 on even wakes
+            self.um.set_config('PCM', 15)
+        else:
+            # PCM = 0 on odd wakes
+            self.um.set_config('PCM', 0)
+        
         # Set the clock
         self.um.set_host_clock_from_modem()
         sleep(1)
@@ -63,11 +72,11 @@ class BottomNode(object):
         # Now, send up as many CST data as we can, using one packet of each rate that we like
         self.send_cst_data(1)
         sleep(20)
-        # self.send_cst_data(2)
+        self.send_cst_data(2)
         sleep(20)
-        #self.send_cst_data(4)
+        self.send_cst_data(4)
         sleep(20)
-        #self.send_cst_data(5)
+        self.send_cst_data(5)
         
         # Wait 3 minutes for replies from the WaveGlider
         sleep(self.reply_timeout_secs)
@@ -78,7 +87,7 @@ class BottomNode(object):
         self.write_csts()
         
         # Now hibernate.
-        self.logger.info("Starting hibernate: hib_mins={1} delay={2}".format(self.hibernate_minutes, self.hibernate_delay_secs))
+        self.logger.info("Starting hibernate: hib_mins={0} delay={1}".format(self.hibernate_minutes, self.hibernate_delay_secs))
         self.um.start_hibernate(self.hibernate_minutes, self.hibernate_delay_secs)
         sleep(1)
         
@@ -124,7 +133,6 @@ class BottomNode(object):
                         #self.logger.info("Got ACK for " + str(ackitem))
                         del self.csts[ackitem]
                         removecount += 1
-                        print removecount
                 
                 self.logger.info("Glider Acknowledged " + str(removecount) + " new CSTs")
                         
@@ -206,12 +214,13 @@ class BottomNode(object):
     def update_wakecount(self):
         # Check our wake count. 
         try:
-            if (os.path.exists('/var/log/wakecount')):
-                wakefile = open('/var/log/wakecount', 'r+')
+            wakecountpath = self.logpath + 'wakecount'
+            if (os.path.exists(wakecountpath)):
+                wakefile = open(wakecountpath, 'r+')
                 wakecountstr = wakefile.read()
                 self.wakecount = int(wakecountstr) + 1
             else:
-                wakefile = open('/var/log/wakecount', 'w')
+                wakefile = open(wakecountpath, 'w')
                 self.logger.debug('No wakecount found, setting to 1')
                 self.wakecount = 1
             # Now, update the saved wakecount.
@@ -224,13 +233,6 @@ class BottomNode(object):
             self.wakecount = 65535
             
         self.logger.info("This is wakeup # " + str(self.wakecount))            
-                        
-                
-            
-        
-        
-        
-        
 
 
 if __name__ == '__main__':

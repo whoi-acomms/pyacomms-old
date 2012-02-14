@@ -32,7 +32,8 @@ class MessageParser:
         value = msg["params"][1]
         
         if key == "SRC": self.modem.id = int(value)
-        if key == "ASD": self.modem.asd = bool(value)  
+        if key == "ASD": self.modem.asd = bool(int(value))
+        if key == "PCM": self.modem.pcm_on = bool(int(value))
         
     def CACYC(self, msg):
         src = int(msg["params"][1])
@@ -114,6 +115,9 @@ class MessageParser:
     def CATXD(self, msg):
         '''CCTXD echo'''
         
+    def CAMSC(self, msg):
+        '''Sleep command echo'''
+        
     def CACLK(self, msg):
         # $CACLK,yyyy,MM,dd,HH,mm,ss
         args = msg["params"]
@@ -146,7 +150,7 @@ class MessageParser:
         
         # Make a CycleStats
         cst = CycleStats.from_values(toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, 
-                                     snr_in, snr_out, snr_sym, mse, dop, noise)
+                                     snr_in, snr_out, snr_sym, mse, dop, noise, pcm_on=self.modem.pcm_on)
         
         # Raise the event
         self.modem.on_cst(cst)

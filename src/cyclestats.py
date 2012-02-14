@@ -42,11 +42,11 @@ class CycleStats(object):
     classdocs
     '''
     fields = ('timestamp', 'mfd_pow', 'mfd_ratio', 'rate_num', 'psk_error', 'bad_frames_num', 
-              'snr_in', 'snr_out', 'snr_sym', 'mse', 'dop', 'noise')
+              'snr_in', 'snr_out', 'snr_sym', 'mse', 'dop', 'noise', 'pcm_on')
         
     packfmtstr = '''uint:24=timestamp,
                     uint:10=mfd_pow,
-                    uint:15=mfd_ratio,
+                    uint:14=mfd_ratio,
                     uint:3=rate_num,
                     uint:3=psk_error,
                     uint:4=bad_frames_num,
@@ -55,7 +55,8 @@ class CycleStats(object):
                     uint:5=snr_sym,
                     uint:9=mse,
                     uint:6=dop,
-                    uint:8=noise
+                    uint:8=noise,
+                    bool=pcm_on
                     '''
     ts_epoch = datetime.datetime(2012, 2, 1)
     
@@ -89,7 +90,7 @@ class CycleStats(object):
         clampvals['timestamp'] = self.get_packed_timestamp()
         
         clampvals['mfd_pow'] = clampfixed(values['mfd_pow'], -30, 40, 0)
-        clampvals['mfd_ratio'] = clampfixed(values['mfd_ratio'], 0, 32767, 0)
+        clampvals['mfd_ratio'] = clampfixed(values['mfd_ratio'], 0, 16383, 0)
         clampvals['rate_num'] = clampfixed(values['rate_num'], -1, 6, 0)
         clampvals['psk_error'] = clampfixed(values['psk_error'], 0, 7, 0)
         clampvals['bad_frames_num'] = clampfixed(values['bad_frames_num'], 0, 8, 0)
@@ -99,6 +100,7 @@ class CycleStats(object):
         clampvals['mse'] = clampfixed(values['mse'], -25, 5, 1)
         clampvals['dop'] = clampfixed(values['dop'], -3, 3, 1)
         clampvals['noise'] = clampfixed(values['noise'], 0, 255, 0)
+        clampvals['pcm_on'] = values['pcm_on']
         
         # Now, pack it into a bitstring.
         bs = bitstring.pack(CycleStats.packfmtstr, **clampvals)
@@ -126,13 +128,14 @@ class CycleStats(object):
         values['mse'] = unclampfixed(packedlist[9], -25, 1)
         values['dop'] = unclampfixed(packedlist[10], -3, 1)
         values['noise'] = unclampfixed(packedlist[11], 0, 0)
+        values['pcm_on'] = bool(packedlist[12])
         
         self = CycleStats(values)
         return self
     
     @classmethod
     def from_values(cls, toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, snr_in, snr_out, snr_sym, 
-                 mse, dop, noise, date=None):
+                 mse, dop, noise, pcm_on=False, date=None):
                 
         
         
@@ -155,6 +158,7 @@ class CycleStats(object):
         values['mse'] = mse
         values['dop'] = dop
         values['noise'] = noise
+        values['pcm_on'] = pcm_on
         
         self = CycleStats(values)
         return self

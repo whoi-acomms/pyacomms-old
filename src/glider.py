@@ -14,7 +14,7 @@ import bitstring
 class NodeData(object):
     def __init__(self):
         self.csts = {}
-        self.csts[0] = CycleStats.from_values('000000', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, CycleStats.ts_epoch)
+        self.csts[0] = CycleStats.from_values('000000', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, False, CycleStats.ts_epoch)
         self.acklist = []
         
         #TODO NOW Read from file
@@ -34,7 +34,7 @@ class Glider(object):
         self.logpath = 'c:/temp/glider/'
         self.start_log()
         
-        self.reply_delay_secs = 20
+        self.reply_delay_secs = 90
         
         self.nodedata = {}
         
@@ -62,6 +62,8 @@ class Glider(object):
         self.modem.rxframe_listeners.append(self.on_rxframe)
         
         self.modem.connect(self.um_10_path, 19200)
+        
+        self.modem.set_config('SRC', 10)
         
         # Everything is now event driven.
         while (True):
