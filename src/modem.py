@@ -90,7 +90,7 @@ class Micromodem(Serial):
         logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
         self.daemonlog = logging.getLogger(self.name + "_pymodem")
         self.daemonlog.setLevel(logging.DEBUG)
-        fh = logging.FileHandler(logfilename)
+        fh = logging.FileHandler(self.logpath + logfilename)
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logformat)
         ch = logging.StreamHandler()
