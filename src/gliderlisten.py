@@ -118,6 +118,6 @@ class GliderListen(object):
         sleep(1)
 
 if __name__ == '__main__':
-    glider = GliderSourceDrop()
+    glider = GliderListen()
     
     glider.run_listen()

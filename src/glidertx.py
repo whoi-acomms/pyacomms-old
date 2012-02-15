@@ -10,6 +10,7 @@ from cyclestats import CycleStats
 from time import sleep
 from threading import Thread
 import bitstring
+import sys
 
 
 class GliderTx(object):
@@ -78,7 +79,6 @@ class GliderTx(object):
                 sleep(1)
                 self.um_2750.send_test_packet(127, 1, 1)
                 sleep(300)
-            
         
     
     def setup_2750(self):
@@ -100,4 +100,12 @@ class GliderTx(object):
 if __name__ == '__main__':
     glider = GliderTx()
     
-    glider.run_tx(do_10k=True, do_2750=True)
+    do_10k = False
+    do_2750 = False
+    
+    if '2750' in sys.argv:
+        do_2750 = True
+    if '10k' in sys.argv:
+        do_10k = True    
+    
+    glider.run_tx(do_10k=do_10k, do_2750=do_2750)
