@@ -70,7 +70,7 @@ class CycleStats(object):
             if not valuesdict.has_key(field):
                 raise KeyError("Invalid dictionary passed to CycleStats constructor.")
         
-        self.values = valuesdict    
+        self.values = valuesdict
     
     def get_packed_timestamp(self):
         return (calendar.timegm(self.values['timestamp'].utctimetuple()) - 

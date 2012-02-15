@@ -17,14 +17,14 @@ class BottomNode(object):
     
     def __init__(self):
         self.logpath = '/var/log/'
-        #self.logpath = 'c:/temp/glider/'
+        self.logpath = 'c:/temp/glider/'
         
         self.cstpicklepath = '/var/log/cst.dat'
-        #self.cstpicklepath = 'c:/temp/glider/cst.dat'
+        self.cstpicklepath = 'c:/temp/glider/cst.dat'
         
         
         self.modempath = '/dev/ttyS0'
-        #self.modempath = 'COM11'
+        self.modempath = 'COM11'
         
         self.gliderid = 10
         self.hibernate_minutes = 6 * 60
@@ -96,7 +96,7 @@ class BottomNode(object):
         os.system('shutdown now')
         sleep(10)
     
-    def on_cst(self, cst):
+    def on_cst(self, cst, msg):
         if not isinstance(cst, CycleStats):
             raise TypeError("BottomNode.on_cst: not a CycleStats object")
         

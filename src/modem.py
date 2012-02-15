@@ -25,8 +25,14 @@ class ChecksumException(Exception):
     pass
 
 class Micromodem(Serial):
-    def __init__(self, logpath='/var/log/', consolelog='WARN'):
+    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True):
         Serial.__init__(self)
+        
+        name = str(name)
+        if name.isalnum():
+            self.name = str(name)
+        else:
+            self.name = "modemx"
 
         self.logpath = logpath
         if self.logpath[-1] != '/':
@@ -64,10 +70,12 @@ class Micromodem(Serial):
         self.start_daemon_logger(consolelog)
         
     def start_nmea_logger(self):
+        now = datetime.utcnow()
+        logfilename = self.name + "_nmea_{0}{1}{2}-{3}{4}{5}.log".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
         logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
-        self.nmealog = logging.getLogger("nmea")
+        self.nmealog = logging.getLogger(self.name + '_nmea')
         self.nmealog.setLevel(logging.DEBUG)
-        fh = logging.FileHandler(self.logpath + 'nmea.log')
+        fh = logging.FileHandler(self.logpath + logfilename)
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logformat)
         ch = logging.StreamHandler()
@@ -77,10 +85,12 @@ class Micromodem(Serial):
         self.nmealog.addHandler(ch)
         
     def start_daemon_logger(self, consolelog):
+        now = datetime.utcnow()
+        logfilename = self.name + "_pymodem_{0}{1}{2}-{3}{4}{5}.log".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
         logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
-        self.daemonlog = logging.getLogger("pymodem")
+        self.daemonlog = logging.getLogger(self.name + "_pymodem")
         self.daemonlog.setLevel(logging.DEBUG)
-        fh = logging.FileHandler(self.logpath + 'pymodem.log')
+        fh = logging.FileHandler(logfilename)
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logformat)
         ch = logging.StreamHandler()
@@ -198,10 +208,10 @@ class Micromodem(Serial):
     def on_packetrx_success(self):
         self.daemonlog.info("Packet RX succeeded")
         
-    def on_cst(self, cst):
+    def on_cst(self, cst, msg):
         self.daemonlog.debug("Got CST message")
         for func in self.cst_listeners: 
-            func(cst) # Pass on the CST message.
+            func(cst, msg) # Pass on the CST message.
     
     def send_packet(self, packet):
         # FIXME this is a hack

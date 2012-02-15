@@ -10,6 +10,7 @@ from cyclestats import CycleStats
 from time import sleep
 from threading import Thread
 import bitstring
+import pickle
 
 class NodeData(object):
     def __init__(self):
@@ -24,23 +25,43 @@ class NodeData(object):
 
 class Glider(object):
     def __init__(self):
+        self.gliderid = 10
+        
         #self.um_10_path = '/dev/ttyS1'
         self.um_10_path = 'COM10'
         
         self.um_3_path = '/dev/ttyS0'
-        self.um_array_path = '/dev/ttyE0'
+        #self.um_array_path = '/dev/ttyE0'
+        self.um_array_path = 'COM12'
         
         #self.logpath = '/var/log/glider/'
         self.logpath = 'c:/temp/glider/'
         self.start_log()
         
+        self.syncpath = '/media/card/sync/'
+        self.syncpath = 'c:/temp/glider/'
+        
+        self.cstlogpath = self.syncpath + 'cst.log'
+        
+        self.nodedata_picklepath = self.syncpath + 'nodedata.pickle'
+        self.nodedata_array_picklepath = self.syncpath + 'nodedata_array.pickle'
+        
         self.reply_delay_secs = 90
         
         self.nodedata = {}
+        self.nodedata_array = {}
+        
+        self.load_nodedata()
+        self.load_nodedata_array()
         
         self.ackthread = None
         
-        self.modem = Micromodem(logpath=(self.logpath + '/um10/'))
+        self.modem = Micromodem(name='modem-10k', logpath=(self.logpath))
+        self.arraymodem = Micromodem(name='modem-array', logpath=(self.logpath))
+        
+        self.start_cst_log()
+        
+    
     
     def start_log(self):
         # Configure logging
@@ -56,20 +77,96 @@ class Glider(object):
         self.logger.addHandler(fh)
         self.logger.addHandler(ch)
         
+    def start_cst_log(self):
+        cst_logformat = logging.Formatter('%(asctime)s\t%(name)s\t%(message)s', "%Y-%m-%d %H:%M:%S")
+        
+        self.cstlog_10k = logging.getLogger("cst-10k")
+        self.cstlog_10k.setLevel(logging.INFO)
+        self.cstlog_array = logging.getLogger("cst-array")
+        self.cstlog_array.setLevel(logging.INFO)
+        
+        fh = logging.FileHandler(self.cstlogpath)
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(cst_logformat)
+        
+        self.cstlog_10k.addHandler(fh)
+        self.cstlog_array.addHandler(fh)
+        
+        
+        
     def start_cst_processing(self):
         
         # Connect the listeners
         self.modem.rxframe_listeners.append(self.on_rxframe)
+        self.modem.cst_listeners.append(self.on_cst_10k)
         
         self.modem.connect(self.um_10_path, 19200)
         
-        self.modem.set_config('SRC', 10)
+        # Just to be safe...
+        self.modem.set_config('SRC', self.gliderid)
+        sleep(1)
+        
+        # Connect to the array and start logging
+        self.arraymodem.cst_listeners.append(self.on_cst_array)
+        self.arraymodem.rxframe_listeners.append(self.on_rxframe_array)
+        self.arraymodem.connect(self.um_array_path, 19200)
+        sleep(1)
+        
         
         # Everything is now event driven.
         while (True):
             sleep(1)
         
         
+    def on_cst_10k(self, cst, msg):
+        # Just log the full CST message
+        self.cstlog_10k.info(msg['raw'].strip())
+    
+    def on_cst_array(self, cst, msg):
+        self.cstlog_array.info(msg['raw'].strip())
+        
+    def on_rxframe_array(self, dataframe):
+        # we just decode and save the data... we don't reply here.
+        # Make sure this is a frame for us before we do anything.
+        if dataframe.dest != self.gliderid:
+            self.logger.debug("Array overheard data frame for " + str(dataframe.dest))
+            return
+        
+        workingdata = dataframe.data
+        
+        # Now, see if it was a CST data frame
+        if workingdata[0] == 0x31:
+            self.logger.debug("Array received frame from node " + str(dataframe.src))
+            
+                        
+            if workingdata[1] == 0x11:
+                
+                # CST frame
+                # Get the nodedata object for this node
+                # Create one if it doesn't exist.
+                if dataframe.src not in self.nodedata_array:
+                    self.nodedata_array[dataframe.src] = NodeData()
+                self.nodedata_array[dataframe.src]
+                
+                # Following the header are a sequence of packed CST messages.
+                workingdata = workingdata[2:]
+                
+                while (len(workingdata) >= 13):
+                    cstbytes = workingdata[0:13]
+                    thecst = CycleStats.from_packed(cstbytes)
+                    workingdata = workingdata[13:]
+                    
+                    # See if we've already received this one
+                    if thecst.packed_timestamp not in self.nodedata_array[dataframe.src].csts:
+                        self.nodedata_array[dataframe.src].csts[thecst.packed_timestamp] = thecst
+                        self.logger.debug("Array Got new CST: " + str(thecst.packed_timestamp))
+                    else:
+                        self.logger.debug("Array Got duplicate CST: " + str(thecst.packed_timestamp))
+                
+                # Save the file.
+                self.save_nodedata_array()
+                        
+      
         
         
     def on_rxframe(self, dataframe):
@@ -95,7 +192,7 @@ class Glider(object):
                 # Create one if it doesn't exist.
                 if dataframe.src not in self.nodedata:
                     self.nodedata[dataframe.src] = NodeData()
-                self.nodedata[dataframe.src]
+                
                 
                 # Following the header are a sequence of packed CST messages.
                 workingdata = workingdata[2:]
@@ -117,6 +214,9 @@ class Glider(object):
                     if thecst.packed_timestamp in self.nodedata[dataframe.src].acklist:
                         self.nodedata[dataframe.src].acklist.remove(thecst.packed_timestamp)    
                     self.nodedata[dataframe.src].acklist.insert(0, thecst.packed_timestamp)
+                    
+                # Save this one to the file.
+                self.save_nodedata()
                     
     def schedule_reply(self, node_id, delay_secs=90):
         # Are we already planning to do this?
@@ -182,7 +282,38 @@ class Glider(object):
         # Send the packet we just created.
         self.modem.send_packet(thispacket)
         
+    def save_nodedata(self):
+        with open(self.nodedata_picklepath, 'wb') as cstpicklefile:
+            pickle.dump(self.nodedata, cstpicklefile, protocol=2)
+            
+        self.logger.debug("Saved nodedata")
+    
+    def save_nodedata_array(self):
+        with open(self.nodedata_array_picklepath, 'wb') as cstpicklefile:
+            pickle.dump(self.nodedata_array, cstpicklefile, protocol=2)
+            
+        self.logger.debug("Saved array nodedata")
         
+    def load_nodedata(self):
+        try:
+            with open(self.nodedata_picklepath, 'rb') as cstpicklefile:
+                self.nodedata = pickle.load(cstpicklefile)
+                self.logger.debug("Read nodedata file.")
+        except:
+            self.logger.exception('Error Reading nodedata File')
+            
+        
+    
+    def load_nodedata_array(self):
+        try:
+            with open(self.nodedata_array_picklepath, 'rb') as cstpicklefile:
+                self.nodedata_array = pickle.load(cstpicklefile)
+                self.logger.debug("Read nodedata_array file.")
+        except:
+            self.logger.error('Error Reading nodedata_array File')
+            
+        
+    
 
 if __name__ == '__main__':
     glider = Glider()

@@ -153,7 +153,7 @@ class MessageParser:
                                      snr_in, snr_out, snr_sym, mse, dop, noise, pcm_on=self.modem.pcm_on)
         
         # Raise the event
-        self.modem.on_cst(cst)
+        self.modem.on_cst(cst, msg)
         
         
     
