@@ -254,10 +254,11 @@ class Glider(object):
         thispacket = Packet(CycleInfo(self.modem.id, node_id, rate_num))
         
         # Do we have at least one ACK to send
-        if len(self.nodedata[node_id].csts) == 0:
-            # We have none, so just send a test packet
-            self.modem.send_test_packet(node_id, rate_num)
-            return
+        if node_id in self.nodedata.keys():
+            if len(self.nodedata[node_id].csts) == 0:
+                # We have none, so just send a test packet
+                self.modem.send_test_packet(node_id, rate_num)
+                return
         
         
         currentidx = 0

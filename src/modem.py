@@ -256,7 +256,7 @@ class Micromodem(Serial):
             
         # Make frames
         frames = []
-        for framenum in range(rate.numframes):
+        for framenum in range(num_frames):
             framedata = bytearray(struct.pack('!BBBBi', 0, 0, 1, 0, int(time())))
             frame = DataFrame(src, dest, ack, framenum, framedata)
             frames.append(frame)
