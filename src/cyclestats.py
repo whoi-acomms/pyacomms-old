@@ -71,6 +71,12 @@ class CycleStats(object):
                 raise KeyError("Invalid dictionary passed to CycleStats constructor.")
         
         self.values = valuesdict
+        
+    def __str__(self):
+        hrstr = "{ts} Rate: {rate_num}\t PSK Error: {psk_error}\tBad Frames: {bad_frames}\tInput SNR: {snr_in}\tMSE: {mse}".format(
+                    ts=self.values['timestamp'], rate_num=self.values['rate_num'], snr_in=self.values['snr_in'], 
+                     mse=self.values['mse'], bad_frames=(self.values['bad_frames_num']*10e7), psk_error=(self.values['psk_error']*10e6))
+        return hrstr
     
     def get_packed_timestamp(self):
         return (calendar.timegm(self.values['timestamp'].utctimetuple()) - 
@@ -120,8 +126,8 @@ class CycleStats(object):
         values['mfd_pow'] = unclampfixed(packedlist[1], -30, 0)
         values['mfd_ratio'] = unclampfixed(packedlist[2], 0, 0)
         values['rate_num'] = unclampfixed(packedlist[3], -1, 0)
-        values['psk_error'] = unclampfixed(packedlist[4], 0, 7)
-        values['bad_frames_num'] = unclampfixed(packedlist[5], 0, 8)
+        values['psk_error'] = unclampfixed(packedlist[4], 0, 0)
+        values['bad_frames_num'] = unclampfixed(packedlist[5], 0, 0)
         values['snr_in'] = unclampfixed(packedlist[6], -10, 1)
         values['snr_out'] = unclampfixed(packedlist[7], 0, 1)
         values['snr_sym'] = unclampfixed(packedlist[8], 0, 0)
@@ -162,6 +168,7 @@ class CycleStats(object):
         
         self = CycleStats(values)
         return self
+    
     
         
                 

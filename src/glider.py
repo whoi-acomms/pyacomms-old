@@ -11,6 +11,7 @@ from time import sleep
 from threading import Thread
 import bitstring
 import pickle
+import sys
 
 class NodeData(object):
     def __init__(self):
@@ -295,7 +296,10 @@ class Glider(object):
             
         self.logger.debug("Saved array nodedata")
         
-    def load_nodedata(self):
+    def load_nodedata(self, picklepath=None):
+        if picklepath == None:
+            picklepath = self.nodedata_picklepath
+        
         try:
             with open(self.nodedata_picklepath, 'rb') as cstpicklefile:
                 self.nodedata = pickle.load(cstpicklefile)
@@ -313,10 +317,25 @@ class Glider(object):
         except:
             self.logger.error('Error Reading nodedata_array File')
             
+    def print_nodedata(self):
+        print("3013 RX Data")
+        for key in self.nodedata.keys():
+            print("Node {0}:".format(key))
+            for cstkey in sorted(self.nodedata[key].csts.iterkeys()):
+                print(self.nodedata[key].csts[cstkey])
+                
+        print("Array RX Data")
+        for key in self.nodedata_array.keys():
+            print("Node {0}:".format(key))
+            for cstkey in sorted(self.nodedata[key].csts.iterkeys()):
+                print(self.nodedata[key].csts[cstkey])
         
     
 
 if __name__ == '__main__':
     glider = Glider()
     
-    glider.start_cst_processing()
+    if 'shore' not in sys.argv:  
+        glider.start_cst_processing()
+    else:
+        glider.print_nodedata()
