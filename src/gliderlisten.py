@@ -112,9 +112,9 @@ class GliderListen(object):
     def setup_array(self):
         self.um_array.connect(self.um_array_path, self.um_baud)
         sleep(1)
-        self.um_10k.set_config('FC0', 2750)
-        self.um_10k.set_config('BW0', 1250)
-        self.um_10k.set_config('SRC', 102)
+        self.um_array.set_config('FC0', 2750)
+        self.um_array.set_config('BW0', 1250)
+        self.um_array.set_config('SRC', 102)
         sleep(1)
 
 if __name__ == '__main__':
