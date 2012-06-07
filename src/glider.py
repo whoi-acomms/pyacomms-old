@@ -320,7 +320,7 @@ class Glider(object):
     def print_nodedata(self):
         print("3013 RX Data")
         for key in self.nodedata.keys():
-            print("Node {0}:".format(key))
+            print("Node {0} ({1} CSTS):".format(key, len(self.nodedata[key].csts)))
             for cstkey in sorted(self.nodedata[key].csts.iterkeys()):
                 print(self.nodedata[key].csts[cstkey])
                 

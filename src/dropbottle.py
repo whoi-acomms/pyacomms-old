@@ -20,8 +20,9 @@ class DropBottle(object):
     def __init__(self):
         self.onboard_ledpath = '/sys/class/leds/whoi:blue:gpio232/brightness'
         self.logpath = '/media/mmcblk0p1/log/'
-        self.um1_serialport = '/dev/ttyS0'
-        self.um2_serialport = '/dev/ttyS1'
+        self.um3013_serialport = '/dev/ttyS0'
+        self.um2002_serialport = '/dev/ttyS1'
+        self.tx_interval_secs = 30
         
         # Set up the GPIO for the plug LED
         os.system('echo 229 > /sys/class/gpio/export')
@@ -36,6 +37,9 @@ class DropBottle(object):
         self.start_log()
         
         self.led_state = 'off'
+        
+        self.um_3013 = Micromodem(logpath=(dbtl.logpath + 'um3013/'))
+        self.um2002 = Micromodem(logpath=(dbtl.logpath + 'um2002/'))
         
     def start_log(self):
         logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
@@ -85,85 +89,95 @@ class DropBottle(object):
             self.led_thread.start()
         except:
             pass
+        
+    def setup_2002(self):
+        self.um2002.connect(self.um2002_serialport, self.um_baud)
+        sleep(1)
+        self.um2002.set_config('FC0', 3750)
+        self.um2002.set_config('BW0', 1250)
+        self.um2002.set_config('SRC', 5)
+        self.um2002.set_config('PAD', 1)
+        self.um2002.set_config('AGN', 0)
+        self.um3013.set_config('FMD', 1)
+        self.um3013.set_config('FML', 200)
+        sleep(1)
+        
+    def setup_3013(self):
+        self.um3013.connect(self.um3013_serialport, self.um_baud)
+        sleep(1)
+        self.um3013.set_config('FC0', 10000)
+        self.um3013.set_config('BW0', 2000)
+        self.um3013.set_config('SRC', 6)
+        self.um3013.set_config('PAD', 1)
+        self.um3013.set_config('AGN', 0)
+        self.um3013.set_config('FMD', 1)
+        self.um3013.set_config('FML', 200)
+        sleep(1)
+        
+    def do_3013_tx(self, bandwidth):
+        self.um3013.set_config('BW0', bandwidth)
+        sleep(1)
+        self.applog.info("[3013] Rate 1, {bw}Hz BW".format(bw=bandwidth))
+        self.um3013.send_test_packet(127, 1)
+        sleep(self.tx_interval_secs)
+        self.applog.info("[3013] Rate 4, {bw}Hz BW".format(bw=bandwidth))
+        self.um3013.send_test_packet(127, 4)
+        sleep(self.tx_interval_secs)
+        self.applog.info("[3013] Rate 5, {bw}Hz BW".format(bw=bandwidth))
+        self.um3013.send_test_packet(127, 5)
+        sleep(self.tx_interval_secs - 1)
+        
+        
+    def do_2002_tx(self, bandwidth):
+        
+        if bandwidth not in (300, 500, 1250):
+            self.applog.warn("Invalid 2002 Bandwidth: {bw}".format(bw=bandwidth))
+        
+        self.um2002.set_config('BW0', bandwidth)
+        self.um2002.set_config('FMD', 0)
+        sleep(1)
+        self.applog.info("[2002] Upsweep, {bw}Hz BW".format(bw=bandwidth))
+        self.um2002.send_sweep('psk')
+        sleep(self.tx_interval_secs - 1)
+        
+        self.um2002.set_config('FMD', 1)
+        sleep(1)
+        self.applog.info("[2002] Rate 1, {bw}Hz BW, 1 Frame".format(bw=bandwidth))
+        self.um2002.send_test_packet(127, 1, 1)
+        sleep(self.tx_interval_secs)
+        self.applog.info("[2002] Rate 4, {bw}Hz BW, 1 Frame".format(bw=bandwidth))
+        self.um2002.send_test_packet(127, 4, 1)
+        sleep(self.tx_interval_secs)
+        self.applog.info("[2002] Rate 5, {bw}Hz BW, 1 Frame".format(bw=bandwidth))
+        self.um2002.send_test_packet(127, 5, 1)
+        sleep(self.tx_interval_secs - 1)
+    
+    def do_standard_test(self):
+        while(True):
+            self.do_2002_test(300)
+            self.do_2002_test(500)
+            self.do_2002_test(1250)
+            
+            self.do_3013_tx(2000)
+            self.do_3013_tx(4000)
+            
+            
+    
+        
 
 if __name__ == '__main__':
     dbtl = DropBottle()
     
-    um1 = Micromodem(logpath=(dbtl.logpath + 'um1/'))
-    um1.connect(dbtl.um1_serialport, 19200)
-    sleep(1)
+    dbtl.setup_2002()
+    dbtl.setup_3013()
     
-    um2 = Micromodem(logpath=(dbtl.logpath + 'um2/'))
-    um2.connect(dbtl.um2_serialport, 19200)
-    sleep(1)
-    
-    um1.set_config('BND', 0)
-    um1.set_config('FC0', 10000)
-    um1.set_config('BW0', 2000)
-    
-    um2.set_config('BND', 0)
-    um2.set_config('FC0', 3750)
-    um2.set_config('BW0', 1000)
-    
-    um1.set_host_clock_from_modem()
-    
-       
+    dbtl.um_3013.set_host_clock_from_modem()
+           
     sleep(1)
     
     dbtl.led_start_blinking()
     
-    '''
-    while(1):
-        dbtl.led_toggle()
-        testdata = bytearray([0, 1, 2, 3, 4, 5, 6, 7]) 
-        
-        dbtl.applog.info("[Task 001] Send test data")
-        um.send_packet_data(1, testdata)
-        
-        sleep(10)
-    ''' 
-    
-    while(1):
-        dbtl.led_toggle()
-        
-        testdata = bytearray([0, 1, 2, 3, 4, 5, 6, 7])        
-        
-        dbtl.applog.info("[UM1 001] Ping 76")
-        um1.send_ping(76)
-        
-        sleep(10)
-        
-        dbtl.applog.info("[UM2 001] Ping 76")
-        um2.send_ping(76)
-        
-        sleep(10)
-        
-        dbtl.applog.info("[Task 002] Ping 2")
-        um1.send_ping(2)
-                
-        sleep(10)
-        
-        dbtl.applog.info("[Task 003] Send test data")
-        #um.send_packet_data(1, testdata)
-        um1.send_test_packet(127, 1)
-        
-        sleep(10)
-        
-        dbtl.applog.info("[Task 003] Send test data")
-        um1.send_test_packet(127, 5)
-        
-        
-        sleep(15)
-        
-        dbtl.applog.info("[Task 004] Upsweep")
-        um1.send_sweep('up')
-        
-        sleep(5)
-        
-        dbtl.applog.info("[Task 005] Downsweep")
-        um1.send_sweep('down')
-        
-        sleep(5)
+    dbtl.do_standard_test()
         
         
     

@@ -73,7 +73,7 @@ class CycleStats(object):
         self.values = valuesdict
         
     def __str__(self):
-        hrstr = "{ts} Rate: {rate_num}\t PSK Error: {psk_error}\tBad Frames: {bad_frames}\tInput SNR: {snr_in}\tMSE: {mse}".format(
+        hrstr = "{ts} Rate: {rate_num:.0f}\t PSK Error: {psk_error:.0f}\tBad Frames: {bad_frames:.0f}\tInput SNR: {snr_in:.1f}\tMSE: {mse:.1f}".format(
                     ts=self.values['timestamp'], rate_num=self.values['rate_num'], snr_in=self.values['snr_in'], 
                      mse=self.values['mse'], bad_frames=(self.values['bad_frames_num']*10e7), psk_error=(self.values['psk_error']*10e6))
         return hrstr
