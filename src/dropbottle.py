@@ -19,9 +19,10 @@ class DropBottle(object):
 
     def __init__(self):
         self.onboard_ledpath = '/sys/class/leds/whoi:blue:gpio232/brightness'
-        self.logpath = '/media/mmcblk0p1/log/'
-        self.um3013_serialport = '/dev/ttyS0'
-        self.um2002_serialport = '/dev/ttyS1'
+        self.logpath = '/home/acomms/pymodem/log/'
+        self.um3013_serialport = '/dev/ttyO0'
+        self.um2002_serialport = '/dev/ttyO1'
+	self.um_baud = 19200
         self.tx_interval_secs = 30
         
         # Set up the GPIO for the plug LED
@@ -38,8 +39,8 @@ class DropBottle(object):
         
         self.led_state = 'off'
         
-        self.um_3013 = Micromodem(logpath=(dbtl.logpath + 'um3013/'))
-        self.um2002 = Micromodem(logpath=(dbtl.logpath + 'um2002/'))
+        self.um3013 = Micromodem(logpath=(self.logpath + 'um3013/'))
+        self.um2002 = Micromodem(logpath=(self.logpath + 'um2002/'))
         
     def start_log(self):
         logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
@@ -98,8 +99,8 @@ class DropBottle(object):
         self.um2002.set_config('SRC', 5)
         self.um2002.set_config('PAD', 1)
         self.um2002.set_config('AGN', 0)
-        self.um3013.set_config('FMD', 1)
-        self.um3013.set_config('FML', 200)
+        self.um2002.set_config('FMD', 1)
+        self.um2002.set_config('FML', 200)
         sleep(1)
         
     def setup_3013(self):
@@ -154,9 +155,9 @@ class DropBottle(object):
     
     def do_standard_test(self):
         while(True):
-            self.do_2002_test(300)
-            self.do_2002_test(500)
-            self.do_2002_test(1250)
+            self.do_2002_tx(300)
+            self.do_2002_tx(500)
+            self.do_2002_tx(1250)
             
             self.do_3013_tx(2000)
             self.do_3013_tx(4000)
@@ -171,7 +172,7 @@ if __name__ == '__main__':
     dbtl.setup_2002()
     dbtl.setup_3013()
     
-    dbtl.um_3013.set_host_clock_from_modem()
+    #dbtl.um3013.set_host_clock_from_modem()
            
     sleep(1)
     
