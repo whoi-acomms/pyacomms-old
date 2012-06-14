@@ -66,38 +66,42 @@ class Micromodem(Serial):
         
         self.serial_tx_queue = Queue()
         
+        self.nmealog = None
+        self.daemonlog = None        
         self.start_nmea_logger()
         self.start_daemon_logger(consolelog)
         
     def start_nmea_logger(self):
-        now = datetime.utcnow()
-        logfilename = self.name + "_nmea_{0}{1}{2}-{3}{4}{5}.log".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
-        logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
-        self.nmealog = logging.getLogger(self.name + '_nmea')
-        self.nmealog.setLevel(logging.DEBUG)
-        fh = logging.FileHandler(self.logpath + logfilename)
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(logformat)
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
-        ch.setFormatter(logformat)
-        self.nmealog.addHandler(fh)
-        self.nmealog.addHandler(ch)
+        if self.nmealog == None:
+            now = datetime.utcnow()
+            logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S"))
+            logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
+            self.nmealog = logging.getLogger(self.name + '_nmea')
+            self.nmealog.setLevel(logging.DEBUG)
+            fh = logging.FileHandler(self.logpath + logfilename)
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(logformat)
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.INFO)
+            ch.setFormatter(logformat)
+            self.nmealog.addHandler(fh)
+            self.nmealog.addHandler(ch)
         
     def start_daemon_logger(self, consolelog):
-        now = datetime.utcnow()
-        logfilename = self.name + "_pymodem_{0}{1}{2}-{3}{4}{5}.log".format(now.year, now.month, now.day, now.hour, now.minute, now.second)
-        logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
-        self.daemonlog = logging.getLogger(self.name + "_pymodem")
-        self.daemonlog.setLevel(logging.DEBUG)
-        fh = logging.FileHandler(self.logpath + logfilename)
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(logformat)
-        ch = logging.StreamHandler()
-        ch.setLevel(consolelog)
-        ch.setFormatter(logformat)
-        self.daemonlog.addHandler(fh)
-        self.daemonlog.addHandler(ch)
+        if self.daemonlog == None:
+            now = datetime.utcnow()
+            logfilename = self.name + "_pymodem_{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S"))
+            logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
+            self.daemonlog = logging.getLogger(self.name + "_pymodem")
+            self.daemonlog.setLevel(logging.DEBUG)
+            fh = logging.FileHandler(self.logpath + logfilename)
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(logformat)
+            ch = logging.StreamHandler()
+            ch.setLevel(consolelog)
+            ch.setFormatter(logformat)
+            self.daemonlog.addHandler(fh)
+            self.daemonlog.addHandler(ch)
 
         
     def listen(self):
