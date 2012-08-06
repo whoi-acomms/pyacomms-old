@@ -129,6 +129,7 @@ class MessageParser:
             self.modem.set_host_clock_flag = False
     
     def CACST(self, msg):
+        '''
         mode = int(msg['params'][0])
         # Discard any PACKET_TIMEOUT CSTs for now
         if mode == 2:
@@ -151,7 +152,8 @@ class MessageParser:
         # Make a CycleStats
         cst = CycleStats.from_values(toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, 
                                      snr_in, snr_out, snr_sym, mse, dop, noise, pcm_on=self.modem.pcm_on)
-        
+        '''
+        cst = None
         # Raise the event
         self.modem.on_cst(cst, msg)
         

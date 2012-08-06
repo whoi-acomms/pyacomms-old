@@ -7,6 +7,7 @@ from threading import Thread
 from Queue import Queue
 import logging
 import struct
+from iridium import Iridium
 
 import commstate
 from messageparser import MessageParser
@@ -25,7 +26,7 @@ class ChecksumException(Exception):
     pass
 
 class Micromodem(Serial):
-    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True):
+    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True, iridiumnumber=None):
         Serial.__init__(self)
         
         name = str(name)
@@ -37,6 +38,11 @@ class Micromodem(Serial):
         self.logpath = logpath
         if self.logpath[-1] != '/':
             self.logpath += '/'
+        
+        if iridiumnumber is not None:
+            self.iridium = Iridium(self, iridiumnumber)
+        else:
+            self.iridium = None
         
         self.thread = None
         self.connected = False
@@ -74,7 +80,7 @@ class Micromodem(Serial):
     def start_nmea_logger(self):
         if self.nmealog == None:
             now = datetime.utcnow()
-            logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S"))
+            logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d %H-%M-%S"))
             logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
             self.nmealog = logging.getLogger(self.name + '_nmea')
             self.nmealog.setLevel(logging.DEBUG)
@@ -86,11 +92,12 @@ class Micromodem(Serial):
             ch.setFormatter(logformat)
             self.nmealog.addHandler(fh)
             self.nmealog.addHandler(ch)
+            self.nmealog.info("$PYMODEM,Starting NMEA log,{0}".format(self.name))
         
     def start_daemon_logger(self, consolelog):
         if self.daemonlog == None:
             now = datetime.utcnow()
-            logfilename = self.name + "_pymodem_{0}.log".format(now.strftime("%Y-%m-%d %H:%M:%S"))
+            logfilename = self.name + "_pymodem_{0}.log".format(now.strftime("%Y-%m-%d %H-%M-%S"))
             logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
             self.daemonlog = logging.getLogger(self.name + "_pymodem")
             self.daemonlog.setLevel(logging.DEBUG)
@@ -108,28 +115,49 @@ class Micromodem(Serial):
         while(True):
             if self.connected:
                 msg = self.rawReadline()
-                if msg is not None:
-                    try:
-                        self.nmealog.info("< " + msg.rstrip('\r\n'))
-                        
-                        msg = Message(msg)
-                        
-                        self.parser.parse(msg)
-                        
-                        for func in self.listeners: func(msg) # Pass on the message.
-                    except ChecksumException:
-                        self.daemonlog.warn("NMEA Checksum Error: ", msg.rstrip('\r\n'))
+                # Hack for Iridium dialing.
+                if self.iridium is not None:
+                    if self.getCD() == False:
+                        # Not connected via Iridium
+                        # Processing I/O with Iridium dialer.
+                        self.iridium.process_io(msg)
+                    else:
+                        # We are connected, so pass through to NMEA
+                        self.process_incoming_nmea(msg)
+                        self.process_outgoing_nmea()
+                else:
+                    # Iridium is not active
+                    self.process_incoming_nmea(msg)
+                    self.process_outgoing_nmea()
+                    
                 
-                # Now, transmit anything we have in the outgoing queue.
-                try:
-                    txstring = self.serial_tx_queue.get_nowait()
-                    self.write(txstring)
-                    self.nmealog.info("> " + txstring.rstrip('\r\n'))
-                except:
-                    pass
-                     
+                    
+                    
             else: # not connected
                 sleep(0.5) # Wait half a second, try again.
+                
+                
+    def process_outgoing_nmea(self):
+        # Now, transmit anything we have in the outgoing queue.
+        try:
+            txstring = self.serial_tx_queue.get_nowait()
+            self.write(txstring)
+            self.nmealog.info("> " + txstring.rstrip('\r\n'))
+        except:
+            pass        
+                
+    def process_incoming_nmea(self, msg):
+        if msg is not None:
+            try:
+                self.nmealog.info("< " + msg.rstrip('\r\n'))
+                
+                msg = Message(msg)
+                
+                self.parser.parse(msg)
+                
+                for func in self.listeners: func(msg) # Pass on the message.
+            except ChecksumException:
+                self.daemonlog.warn("NMEA Checksum Error: ", msg.rstrip('\r\n'))        
 
     def connect(self, port, baud, timeout=0.1):
         self.doSerial = True
@@ -158,7 +186,7 @@ class Micromodem(Serial):
         self.daemonlog.debug("Changed state to " + str(self.state))
         self.state.entering()
 
-    def rawWrite(self, msg):
+    def write_nmea(self, msg):
         """Call with the message to send, without leading $ or trailing checksums,
         linefeeds, and carriage returns.  Correct checksum will be computed."""
         
@@ -171,20 +199,23 @@ class Micromodem(Serial):
         # Queue this message for transmit in the serial thread
         self.serial_tx_queue.put_nowait(message)
         
+    def write_string(self, string):
+        self.serial_tx_queue.put_nowait(string)
+        
     def getConfigParam(self, param):
         msg = { 'type':"CCCFQ", 'params':[ param ] }
-        self.rawWrite( msg )
+        self.write_nmea( msg )
 
     def setConfigParam(self, param, value):
         # luckily, all param values are currently int's.
         msg = { 'type':"CCCFG", 'params':(param, value) }
-        self.rawWrite( msg )
+        self.write_nmea( msg )
 
     def sendBinary(self, dest, binData, ack=False, src=None):
         ack = bool2int(ack)
         if src is None: src = self.config["SRC"]
         msg = { 'type' : "CCTXD", 'params':(src, dest, ack, toHexStr(binData)) }
-        self.rawWrite( msg )
+        self.write_nmea( msg )
 
     def rawReadline(self):
         """Returns a raw message from the modem."""
@@ -284,7 +315,7 @@ class Micromodem(Serial):
         # Build the corresponding CCTXD message
         msg = {'type':'CCTXD', 'params':[dataframe.src, dataframe.dest, int(dataframe.ack), 
                                          hexstring_from_data(dataframe.data)]}
-        self.rawWrite(msg)
+        self.write_nmea(msg)
     
     def send_cycleinit(self, cycleinfo):
         # Build the corresponding CCCYC message
@@ -293,13 +324,13 @@ class Micromodem(Serial):
         msg = {'type':'CCCYC', 'params':[0, cycleinfo.src, cycleinfo.dest, cycleinfo.rate_num, 
                                          int(cycleinfo.ack), cycleinfo.num_frames]}
         
-        self.rawWrite(msg)
+        self.write_nmea(msg)
 
     def send_ping(self, dest_id):
         # Build the CCMPC message
         msg = {'type':'CCMPC', 'params':[self.id, dest_id]}
         
-        self.rawWrite(msg)
+        self.write_nmea(msg)
         
     def send_sweep(self, direction):
         '''This will send a sweep using the CCRSP command.'''
@@ -314,21 +345,21 @@ class Micromodem(Serial):
         # Build a CCRSP message
         msg = {'type':'CCRSP', 'params':[0, direction, 0]}
         
-        self.rawWrite(msg)
+        self.write_nmea(msg)
         
     def set_config(self, name, value):
         msg = {'type':'CCCFG', 'params':[str(name), str(value)]}
-        self.rawWrite(msg)
+        self.write_nmea(msg)
         
     def start_hibernate(self, num_minutes, delay_secs=0):
         msg = {'type':'CCMSC', 'params':[self.id, self.id, num_minutes, delay_secs]}
-        self.rawWrite(msg)
+        self.write_nmea(msg)
     
         
     def set_host_clock_from_modem(self):
         self.set_host_clock_flag = True        
         msg = {'type':'CCCLQ', 'params':[0,]}
-        self.rawWrite(msg)
+        self.write_nmea(msg)
         # The actual clock setting is done by the CACLQ parser when the flag is true.
 
 class Message(dict):
