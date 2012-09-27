@@ -11,14 +11,14 @@ setup(
     author='Eric Gallimore, Andrew Beal',
     author_email='abeal@whoi.edu',
     packages=['Micromodem'],
-	package_dir={'':'src'},
+	package_dir={'Micromodem':'src'},
     url='http://acomms.whoi.edu/',
     license='LICENSE.txt',
     description='Micromodem Python Tool.',
     long_description=open('README.txt').read(),
     install_requires=[
         "bitstring >= 3.0.0",
-        "pyserial >= 2.7",
+        "pyserial >= 2.6",
     ],
 )
 
