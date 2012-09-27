@@ -20,6 +20,7 @@ class Iridium(object):
         self.state = 'DISCONNECTED'
         self.modem = modem
         self.number = str(number)
+	self.counter = 0
         
         
     def process_io(self, msg):
@@ -39,7 +40,11 @@ class Iridium(object):
                 self.state = "DISCONNECTED"
             elif "ERROR" in msg:
                 self.state = "DISCONNECTED"
+	    if self.counter > 600: #Counts are about 0.1s
+		self.state = "DISCONNECTED"
+	    self.counter += 1
         elif self.state == 'DISCONNECTED':
+	    self.counter = 0
             self.do_dial()
         elif self.state == "CONNECTED":
             # In theory, we shouldn't be here, because if we are connected, traffic is passed through to the umodem module.
@@ -47,12 +52,13 @@ class Iridium(object):
             self.state = "DISCONNECTED"
         
         if msg is not "":
-            print("Iridium> {0}".format(msg))
+            self.modem.nmealog.info("$IRIDIUM,{0},{1}".format(self.modem.name, msg.strip()))
             
     
     def do_dial(self):
         #881676330186 is Buoy 3
         # Toggle DTR
+	print("Iridium> Dialing...")
         sleep(2)
         self.modem.setDTR(False)
         sleep(0.05)

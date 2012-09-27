@@ -26,7 +26,7 @@ class ChecksumException(Exception):
     pass
 
 class Micromodem(Serial):
-    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True, iridiumnumber=None):
+    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True, iridiumnumber=None, logformat='Default'):
         Serial.__init__(self)
         
         name = str(name)
@@ -38,6 +38,8 @@ class Micromodem(Serial):
         self.logpath = logpath
         if self.logpath[-1] != '/':
             self.logpath += '/'
+
+	self.logformat = logformat
         
         if iridiumnumber is not None:
             self.iridium = Iridium(self, iridiumnumber)
@@ -69,6 +71,7 @@ class Micromodem(Serial):
         self.current_txpacket = None
         self.current_rxpacket = None
         self.set_host_clock_flag = False
+	self.temp_incoming_nmea = ""
         
         self.serial_tx_queue = Queue()
         
@@ -80,13 +83,17 @@ class Micromodem(Serial):
     def start_nmea_logger(self):
         if self.nmealog == None:
             now = datetime.utcnow()
-            logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d %H-%M-%S"))
-            logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
+            logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d_%H-%M-%S"))
+            logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t{0}\t%(message)s".format(self.name), "%Y-%m-%d %H:%M:%S")
+	    mtmaformat = logging.Formatter("%(asctime)sZ,RX,%(message)s", "%Y-%m-%d %H:%M:%S")
             self.nmealog = logging.getLogger(self.name + '_nmea')
             self.nmealog.setLevel(logging.DEBUG)
             fh = logging.FileHandler(self.logpath + logfilename)
             fh.setLevel(logging.DEBUG)
-            fh.setFormatter(logformat)
+            if self.logformat.lower() == "modemtma":
+		fh.setFormatter(mtmaformat)
+	    else:		
+		fh.setFormatter(logformat)
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
             ch.setFormatter(logformat)
@@ -97,7 +104,7 @@ class Micromodem(Serial):
     def start_daemon_logger(self, consolelog):
         if self.daemonlog == None:
             now = datetime.utcnow()
-            logfilename = self.name + "_pymodem_{0}.log".format(now.strftime("%Y-%m-%d %H-%M-%S"))
+            logfilename = self.name + "_pymodem_{0}.log".format(now.strftime("%Y-%m-%d_%H-%M-%S"))
             logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
             self.daemonlog = logging.getLogger(self.name + "_pymodem")
             self.daemonlog.setLevel(logging.DEBUG)
@@ -109,6 +116,7 @@ class Micromodem(Serial):
             ch.setFormatter(logformat)
             self.daemonlog.addHandler(fh)
             self.daemonlog.addHandler(ch)
+            self.daemonlog.info("Starting daemon log,{0}".format(self.name))
 
         
     def listen(self):
@@ -142,22 +150,26 @@ class Micromodem(Serial):
         try:
             txstring = self.serial_tx_queue.get_nowait()
             self.write(txstring)
-            self.nmealog.info("> " + txstring.rstrip('\r\n'))
+            #self.nmealog.info("> " + txstring.rstrip('\r\n'))
+	    self.nmealog.info(txstring.rstrip('\r\n'))
         except:
             pass        
                 
     def process_incoming_nmea(self, msg):
         if msg is not None:
             try:
-                self.nmealog.info("< " + msg.rstrip('\r\n'))
-                
+                #self.nmealog.info("< " + msg.rstrip('\r\n'))
+		self.nmealog.info(msg.rstrip('\r\n'))                
+
                 msg = Message(msg)
                 
                 self.parser.parse(msg)
                 
                 for func in self.listeners: func(msg) # Pass on the message.
             except ChecksumException:
-                self.daemonlog.warn("NMEA Checksum Error: ", msg.rstrip('\r\n'))        
+                self.daemonlog.warn("NMEA Checksum Error: ", msg.rstrip('\r\n'))
+	    except:
+		self.daemonlog.warn("NMEA Input Error")
 
     def connect(self, port, baud, timeout=0.1):
         self.doSerial = True
@@ -220,11 +232,20 @@ class Micromodem(Serial):
     def rawReadline(self):
         """Returns a raw message from the modem."""
         rl = Serial.readline(self)
-        
-        if rl == "": 
-            return None
-        else: 
-            return rl
+	
+	if rl == "":
+	    return None
+
+	# Make sure we got a complete line.  Readline will return data on timeout.	
+	if rl[-1] != '\n':
+	    self.temp_incoming_nmea += rl
+	    return None
+        else:
+            if self.temp_incoming_nmea != "":
+                rl = self.temp_incoming_nmea + rl
+	    self.temp_incoming_nmea = ""
+	    
+        return rl
         
     def on_rxframe(self, dataframe):
         self.daemonlog.debug("I got a frame!  Yay!")
