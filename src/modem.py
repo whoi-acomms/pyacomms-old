@@ -26,7 +26,7 @@ class ChecksumException(Exception):
     pass
 
 class Micromodem(Serial):
-    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True, iridiumnumber=None, logformat='Default'):
+    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True, iridiumnumber=None, logformat='Default', GetUplinkDataFxn=None):
         Serial.__init__(self)
         
         name = str(name)
@@ -40,7 +40,6 @@ class Micromodem(Serial):
             self.logpath += '/'
 
 	self.logformat = logformat
-        
         if iridiumnumber is not None:
             self.iridium = Iridium(self, iridiumnumber)
         else:
@@ -79,6 +78,11 @@ class Micromodem(Serial):
         self.daemonlog = None        
         self.start_nmea_logger()
         self.start_daemon_logger(consolelog)
+        
+        if hasattr(GetUplinkDataFxn,'__call__'):
+            self.GetUplinkDataFxn = GetUplinkDataFxn
+        else:
+            self.GetUplinkDataFxn = None
         
     def start_nmea_logger(self):
         if self.nmealog == None:
@@ -220,7 +224,7 @@ class Micromodem(Serial):
 
     def setConfigParam(self, param, value):
         # luckily, all param values are currently int's.
-        msg = { 'type':"CCCFG", 'params':(param, value) }
+        msg = { 'type':"CCCFG", 'params':[param, value] }
         self.write_nmea( msg )
 
     def sendBinary(self, dest, binData, ack=False, src=None):
@@ -346,6 +350,15 @@ class Micromodem(Serial):
                                          int(cycleinfo.ack), cycleinfo.num_frames]}
         
         self.write_nmea(msg)
+
+    def send_uplink_frame(self,drqparams):
+        if self.GetUplinkDataFxn is not None:
+            data = self.GetUplinkDataFxn(drqparams.num_bytes,self.id)
+        else:
+            data = bytearray(struct.pack('!BBBBi', 0, 0, 1, 0, int(time())))
+            
+        self.send_frame(DataFrame(src = drqparams.src,dest = drqparams.dest, ack = drqparams.ack, frame_num = drqparams.frame_num, data=data))    
+            
 
     def send_ping(self, dest_id):
         # Build the CCMPC message
