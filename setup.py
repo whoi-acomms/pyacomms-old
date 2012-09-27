@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 from distutils.core import setup
+from ez_setup import use_setuptools
+    
+use_setuptools()
 
 setup(
     name='MicroModem',
@@ -9,7 +12,6 @@ setup(
     author_email='abeal@whoi.edu',
     packages=['Micromodem'],
 	package_dir={'':'src'},
-	scripts=ScriptList,
     url='http://acomms.whoi.edu/',
     license='LICENSE.txt',
     description='Micromodem Python Tool.',
