@@ -39,7 +39,7 @@ class Micromodem(Serial):
         if self.logpath[-1] != '/':
             self.logpath += '/'
 
-	self.logformat = logformat
+        self.logformat = logformat
         if iridiumnumber is not None:
             self.iridium = Iridium(self, iridiumnumber)
         else:
@@ -70,7 +70,7 @@ class Micromodem(Serial):
         self.current_txpacket = None
         self.current_rxpacket = None
         self.set_host_clock_flag = False
-	self.temp_incoming_nmea = ""
+        self.temp_incoming_nmea = ""
         
         self.serial_tx_queue = Queue()
         
@@ -89,15 +89,15 @@ class Micromodem(Serial):
             now = datetime.utcnow()
             logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d_%H-%M-%S"))
             logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t{0}\t%(message)s".format(self.name), "%Y-%m-%d %H:%M:%S")
-	    mtmaformat = logging.Formatter("%(asctime)sZ,RX,%(message)s", "%Y-%m-%d %H:%M:%S")
+            mtmaformat = logging.Formatter("%(asctime)sZ,RX,%(message)s", "%Y-%m-%d %H:%M:%S")
             self.nmealog = logging.getLogger(self.name + '_nmea')
             self.nmealog.setLevel(logging.DEBUG)
             fh = logging.FileHandler(self.logpath + logfilename)
             fh.setLevel(logging.DEBUG)
             if self.logformat.lower() == "modemtma":
-		fh.setFormatter(mtmaformat)
-	    else:		
-		fh.setFormatter(logformat)
+                fh.setFormatter(mtmaformat)
+            else:		
+                fh.setFormatter(logformat)
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
             ch.setFormatter(logformat)
@@ -155,7 +155,7 @@ class Micromodem(Serial):
             txstring = self.serial_tx_queue.get_nowait()
             self.write(txstring)
             #self.nmealog.info("> " + txstring.rstrip('\r\n'))
-	    self.nmealog.info(txstring.rstrip('\r\n'))
+            self.nmealog.info(txstring.rstrip('\r\n'))
         except:
             pass        
                 
@@ -163,7 +163,7 @@ class Micromodem(Serial):
         if msg is not None:
             try:
                 #self.nmealog.info("< " + msg.rstrip('\r\n'))
-		self.nmealog.info(msg.rstrip('\r\n'))                
+                self.nmealog.info(msg.rstrip('\r\n'))                
 
                 msg = Message(msg)
                 
@@ -172,8 +172,8 @@ class Micromodem(Serial):
                 for func in self.listeners: func(msg) # Pass on the message.
             except ChecksumException:
                 self.daemonlog.warn("NMEA Checksum Error: ", msg.rstrip('\r\n'))
-	    except:
-		self.daemonlog.warn("NMEA Input Error")
+            except:
+                self.daemonlog.warn("NMEA Input Error")
 
     def connect(self, port, baud, timeout=0.1):
         self.doSerial = True
@@ -236,21 +236,21 @@ class Micromodem(Serial):
     def rawReadline(self):
         """Returns a raw message from the modem."""
         rl = Serial.readline(self)
-	
-	if rl == "":
-	    return None
 
-	# Make sure we got a complete line.  Readline will return data on timeout.	
-	if rl[-1] != '\n':
-	    self.temp_incoming_nmea += rl
-	    return None
+        if rl == "":
+            return None
+
+        # Make sure we got a complete line.  Readline will return data on timeout.	
+        if rl[-1] != '\n':
+            self.temp_incoming_nmea += rl
+            return None
         else:
             if self.temp_incoming_nmea != "":
                 rl = self.temp_incoming_nmea + rl
-	    self.temp_incoming_nmea = ""
-	    
+            self.temp_incoming_nmea = ""
+            
         return rl
-        
+
     def on_rxframe(self, dataframe):
         self.daemonlog.debug("I got a frame!  Yay!")
         for func in self.rxframe_listeners:
@@ -399,7 +399,7 @@ class Micromodem(Serial):
 class Message(dict):
     def __init__(self, raw):
         """Strips off NMEA checksum and leading $, returns command dictionary
-(or throws an exception if the checksum is invalid)."""
+        (or throws an exception if the checksum is invalid)."""
         dict.__init__(self)
         if raw == "": return None
         msg = raw.lstrip('$').rstrip('\r\n').rsplit('*')
