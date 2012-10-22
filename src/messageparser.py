@@ -80,7 +80,10 @@ class MessageParser:
             self.modem.state.got_badcrc()
         elif msg["params"][0] == "PACKET_TIMEOUT":
             self.modem.state.got_packettimeout()
-            
+        else:
+            msg_type = msg["params"][0]
+            number = int(msg["params"][1])
+            self.modem.state.got_CAMSG(msg_type,number)
         #TODO: Add PSK errors here
             
     def CAERR(self, msg):
@@ -89,11 +92,33 @@ class MessageParser:
         if msg["params"][1] == "DATA_TIMEOUT":
             frame_num = msg["params"][3]
             self.modem.state.got_datatimeout(frame_num)
+        else:
+            hhmmss = msg["params"][0]
+            module = msg["params"][1]
+            err_num = int(msg["params"][2])
+            message = msg["params"][3]
+            self.modem.state.got_caerr(hhmmss,module,err_num,message)
     
     def CAREV(self, msg):
+        '''Reversion Message'''
         self.modem.state.got_carev()
         
     def CATXP(self, msg):
+        '''Start of Packet Transmission Acoustically'''
+        pass
+    
+    def CAMPA(self,msg):
+        '''Ping Received Acoustically'''
+        src = int(msg["params"][0])
+        dest = int(msg["params"][1])
+        self.modem.state.got_campa(src,dest)
+        pass
+
+    def CADQF(self,msg):
+        '''Data Quality Factor Message'''
+        dqf= int(msg["params"][0])
+        p = int(msg["params"][1])        
+        self.modem.state.got_cadqf(dqf,p)
         pass
     
     def CARSP(self, msg):

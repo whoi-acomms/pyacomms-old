@@ -47,8 +47,24 @@ class CommState(object):
             self.modem.on_packettx_failed()
             
         self.modem.changestate(Idle)
-        
         pass
+    
+    def got_caerr(self,hhmmss,module,err_num,message):
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CAERR. (Time:%s Module: %s Number:%d Message:%s)" % (hhmmss,module,err_num,message))
+        pass
+    
+    def got_camsg(self,msg_type,number):
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CAMSG. (Type:%s Number:%d)" % (msg_type,number))
+        pass
+    
+    def got_campa(self,src,dest):
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got Ping From %d to %d" % (src,dest))
+        pass
+    
+    def got_cadqf(self, dqf, packet_type):
+        self.modem.daemonlog.debug("[" + str(self) + "]: Got CADQF. (DQF:%d Packet Type:%d)" % (dqf,packet_type))
+        pass
+    
     def sent_cccyc(self, cycleinfo):
         self.modem.daemonlog.debug("[" + str(self) + "]: Sent CCCYC")
         pass
