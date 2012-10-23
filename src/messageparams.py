@@ -1,8 +1,13 @@
 from binascii import hexlify, unhexlify
+import exceptions
 
 def data_from_hexstring(hexstring):
     databytes = bytearray()
-    databytes.extend([ord(c) for c in unhexlify(hexstring)])
+    try:
+        databytes.extend([ord(c) for c in unhexlify(hexstring)])
+    #Catch Odd-length String Error
+    except exceptions.TypeError:
+        pass
     
     return databytes
 

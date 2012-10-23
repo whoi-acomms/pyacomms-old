@@ -4,7 +4,8 @@ from time import sleep, time
 from datetime import datetime
 from serial import Serial
 from threading import Thread
-from Queue import Queue
+from Queue import Empty, Full
+from multiprocessing import Queue
 import logging
 import struct
 from iridium import Iridium
@@ -49,8 +50,9 @@ class Micromodem(Serial):
         self.connected = False
         self.listeners = [ ]
         self.stopListeningCalled = False
-        self.thread = Thread( target=self.listen )
+        self.thread = Thread( target=self.listen)
         self.thread.setDaemon(True)
+        
         self.doSerial = True
 
         self.parser = MessageParser(self)
@@ -76,7 +78,7 @@ class Micromodem(Serial):
         
         self.nmealog = None
         self.daemonlog = None        
-        self.start_nmea_logger()
+        self.start_nmea_logger(consolelog)
         self.start_daemon_logger(consolelog)
         
         if hasattr(GetUplinkDataFxn,'__call__'):
@@ -84,7 +86,7 @@ class Micromodem(Serial):
         else:
             self.GetUplinkDataFxn = None
         
-    def start_nmea_logger(self):
+    def start_nmea_logger(self,consolelog):
         if self.nmealog == None:
             now = datetime.utcnow()
             logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d_%H-%M-%S"))
@@ -98,11 +100,12 @@ class Micromodem(Serial):
                 fh.setFormatter(mtmaformat)
             else:		
                 fh.setFormatter(logformat)
-            ch = logging.StreamHandler()
-            ch.setLevel(logging.INFO)
-            ch.setFormatter(logformat)
+            if consolelog != 'DISABLED':
+                ch = logging.StreamHandler()
+                ch.setLevel(logging.INFO)
+                ch.setFormatter(logformat)
+                self.nmealog.addHandler(ch)
             self.nmealog.addHandler(fh)
-            self.nmealog.addHandler(ch)
             self.nmealog.info("$PYMODEM,Starting NMEA log,{0}".format(self.name))
         
     def start_daemon_logger(self, consolelog):
@@ -115,11 +118,12 @@ class Micromodem(Serial):
             fh = logging.FileHandler(self.logpath + logfilename)
             fh.setLevel(logging.DEBUG)
             fh.setFormatter(logformat)
-            ch = logging.StreamHandler()
-            ch.setLevel(consolelog)
-            ch.setFormatter(logformat)
+            if consolelog != 'DISABLED':            
+                ch = logging.StreamHandler()
+                ch.setLevel(consolelog)
+                ch.setFormatter(logformat)
+                self.daemonlog.addHandler(ch)
             self.daemonlog.addHandler(fh)
-            self.daemonlog.addHandler(ch)
             self.daemonlog.info("Starting daemon log,{0}".format(self.name))
 
         
@@ -141,10 +145,6 @@ class Micromodem(Serial):
                     # Iridium is not active
                     self.process_incoming_nmea(msg)
                     self.process_outgoing_nmea()
-                    
-                
-                    
-                    
             else: # not connected
                 sleep(0.5) # Wait half a second, try again.
                 
@@ -152,12 +152,16 @@ class Micromodem(Serial):
     def process_outgoing_nmea(self):
         # Now, transmit anything we have in the outgoing queue.
         try:
-            txstring = self.serial_tx_queue.get_nowait()
+            txstring = self.serial_tx_queue.get(block=False)
+            self.daemonlog.debug("WRITING TO SERIAL: %s" % (txstring))
             self.write(txstring)
             #self.nmealog.info("> " + txstring.rstrip('\r\n'))
             self.nmealog.info(txstring.rstrip('\r\n'))
+        #If the queue is empty, then pass, otherwise log error
+        except Empty:
+            pass
         except:
-            pass        
+            self.daemonlog.exception("NMEA Output Error")        
                 
     def process_incoming_nmea(self, msg):
         if msg is not None:
@@ -171,7 +175,7 @@ class Micromodem(Serial):
                 
                 for func in self.listeners: func(msg) # Pass on the message.
             except ChecksumException:
-                self.daemonlog.warn("NMEA Checksum Error: ", msg.rstrip('\r\n'))
+                self.daemonlog.warn("NMEA Checksum Error: %s" % (msg.rstrip('\r\n')))
             except:
                 self.daemonlog.warn("NMEA Input Error")
 
@@ -181,7 +185,8 @@ class Micromodem(Serial):
         self.baudrate = baud
         self.timeout = timeout
         try:
-            if not self.thread.isAlive(): self.thread.start()
+            if not self.thread.isAlive():
+                self.thread.start()
             self.open()
             self.connected = True
             sleep(0.05)
@@ -213,14 +218,28 @@ class Micromodem(Serial):
         #Serial.write(self, message )
         
         # Queue this message for transmit in the serial thread
-        self.serial_tx_queue.put_nowait(message)
+        self.daemonlog.debug("WRITING NMEA TO QUEUE: %s" % (message))
+        try:
+            self.serial_tx_queue.put(message, block=False)
+        #If queue full, then ignore
+        except Full:
+            self.daemonlog.debug("write_nmea: Serial TX Queue Full")
+
         
     def write_string(self, string):
-        self.serial_tx_queue.put_nowait(string)
+        self.daemonlog.debug("WRITING STRING TO QUEUE: %s" % (string))
+        try:
+            self.serial_tx_queue.put(string, block=False)
+        #If queue full, then ignore
+        except Full:
+            self.daemonlog.debug("write_string: Serial TX Queue Full")
+
+
         
     def getConfigParam(self, param):
         msg = { 'type':"CCCFQ", 'params':[ param ] }
         self.write_nmea( msg )
+        
 
     def setConfigParam(self, param, value):
         # luckily, all param values are currently int's.
@@ -312,7 +331,7 @@ class Micromodem(Serial):
         
         # How many frames shall we send?
         if num_frames == None:
-            num_frames = Rates[rate_num].numframes
+            num_frames = rate.numframes
             
         # Make frames
         frames = []
@@ -343,9 +362,9 @@ class Micromodem(Serial):
         self.write_nmea(msg)
     
     def send_cycleinit(self, cycleinfo):
+        self.daemonlog.debug("Sending CCCYC with Following Parameters: %s" % (str([0, cycleinfo.src, cycleinfo.dest, cycleinfo.rate_num, 
+                                         int(cycleinfo.ack), cycleinfo.num_frames])))
         # Build the corresponding CCCYC message
-        
-        
         msg = {'type':'CCCYC', 'params':[0, cycleinfo.src, cycleinfo.dest, cycleinfo.rate_num, 
                                          int(cycleinfo.ack), cycleinfo.num_frames]}
         
