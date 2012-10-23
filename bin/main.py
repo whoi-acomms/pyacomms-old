@@ -4,11 +4,11 @@ Created on Feb 1, 2012
 @author: Eric
 '''
 
-from modem import Micromodem
+from Micromodem import Micromodem
 from time import sleep
 
 if __name__ == '__main__':
-    um = Micromodem(logpath='c:/temp')
+    um = Micromodem(logpath='C:/temp', consolelog='DISABLED')
     um.connect('COM11', 19200)
     
     testdata = bytearray([0, 1, 2, 3, 4, 5, 6, 7])
