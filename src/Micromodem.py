@@ -201,6 +201,17 @@ class Micromodem(Serial):
         self.connected = False
         self.close()
         
+    def CloseLoggers(self):
+        for hdlr in self.daemonlog.handlers:
+            hdlr.flush()
+            hdlr.close()
+            self.daemonlog.removeHandler(hdlr)
+        
+        for hdlr in self.nmealog.handlers:
+            hdlr.flush()
+            hdlr.close()
+            self.nmealog.removeHandler(hdlr)
+        
         
     def changestate(self, newstate):
         self.state = newstate(comms=self)
