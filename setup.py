@@ -6,12 +6,12 @@ from ez_setup import use_setuptools
 use_setuptools()
 
 setup(
-    name='MicroModem',
+    name='acomms',
     version='1.0',
     author='Eric Gallimore, Andrew Beal',
     author_email='abeal@whoi.edu',
-    packages=['Micromodem'],
-	package_dir={'Micromodem':'src'},
+    packages=['acomms'],
+	package_dir={'acomms':'src'},
     url='http://acomms.whoi.edu/',
     license='LICENSE.txt',
     description='Micromodem Python Tool.',
