@@ -4,9 +4,7 @@ Created on Feb 3, 2012
 @author: Eric
 '''
 
-from modem import Micromodem
-from cyclestats import CycleStats
-from messageparams import Rates, DataFrame, Packet, CycleInfo
+from acomms import Micromodem, CycleStats, Rates, DataFrame, Packet, CycleInfo
 from bitstring import BitStream
 from time import sleep
 import logging

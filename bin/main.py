@@ -4,7 +4,7 @@ Created on Feb 1, 2012
 @author: Eric
 '''
 
-from Micromodem import Micromodem
+from acomms import Micromodem
 from time import sleep
 
 if __name__ == '__main__':

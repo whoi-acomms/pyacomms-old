@@ -4,7 +4,7 @@ Created on Feb 8, 2012
 @author: Eric
 '''
 
-from modem import Micromodem
+from acomms import Micromodem
 from time import sleep
 import logging
 from threading import Thread
