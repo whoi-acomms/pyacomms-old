@@ -22,7 +22,7 @@ class GliderListen(object):
         
         self.cstlogpath = self.syncpath + 'cst.log'
         
-        self.logpath = '/var/log/glider_listen/'
+        self.logpath = '/home/acomms/log/glider_listen/'
         #self.logpath = 'c:/temp/glider/'
         self.logger = None
         self.start_log()

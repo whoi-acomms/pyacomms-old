@@ -22,7 +22,7 @@ class GliderTx(object):
         
         self.um_baud = 19200
         
-        self.logpath = '/var/log/glidertx/'
+        self.logpath = '/home/acomms/log/glidertx/'
         #self.logpath = 'c:/temp/glider/'
         self.start_log()
                 

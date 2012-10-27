@@ -35,7 +35,7 @@ class Glider(object):
         self.um_array_path = '/dev/ttyO0'
         #self.um_array_path = 'COM12'
         
-        self.logpath = '/var/log/glider/'
+        self.logpath = '/home/acomms/log/glider/'
         #self.logpath = 'c:/temp/glider/'
         self.start_log()
         
