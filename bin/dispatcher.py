@@ -16,8 +16,10 @@ class Dispatcher(object):
 
 
     def __init__(self):
-        self.command_dir = '/media/card/sync/commands'
-        self.command_file_path = '/media/card/sync/commands/mode'
+        self.command_dir = '/home/acomms/sync/fromshore'
+        self.command_file_path = '/home/acomms/sync/fromshore/mode'
+        self.script_path = '/home/acomms/pyacomms/bin'
+        self.python_path = '/usr/bin/python'
         self.current_mode = "off"
         
         self.running_process = None
@@ -62,23 +64,23 @@ class Dispatcher(object):
         
     def run_txboth(self):
         self.kill_running()
-        self.running_process = subprocess.Popen(['/usr/bin/python','/home/root/pymodem/glidertx.py', '10k', '2750'])
+        self.running_process = subprocess.Popen([self.python_path,os.path.join(self.script_path, 'glidertx.py'), '10k', '3750'])
 
-    def run_tx2750(self):
+    def run_tx3750(self):
         self.kill_running()
-        self.running_process = subprocess.Popen(['/usr/bin/python','/home/root/pymodem/glidertx.py', '2750'])
+        self.running_process = subprocess.Popen([self.python_path,os.path.join(self.script_path, 'glidertx.py'), '3750'])
     
     def run_tx10k(self):
         self.kill_running()
-        self.running_process = subprocess.Popen(['/usr/bin/python','/home/root/pymodem/glidertx.py', '10k'])
+        self.running_process = subprocess.Popen([self.python_path,os.path.join(self.script_path, 'glidertx.py'), '10k'])
         
     def run_sourcedrop(self):
         self.kill_running()
-        self.running_process = subprocess.Popen(['/usr/bin/python','/home/root/pymodem/gliderlisten.py'])
+        self.running_process = subprocess.Popen([self.python_path,os.path.join(self.script_path, 'gliderlisten.py')])
         
     def run_longterm(self):
         self.kill_running()
-        self.running_process = subprocess.Popen(['/usr/bin/python','/home/root/pymodem/glider.py'])
+        self.running_process = subprocess.Popen([self.python_path,os.path.join(self.script_path, 'glider.py')])
     
     def run_off(self):
         self.kill_running()

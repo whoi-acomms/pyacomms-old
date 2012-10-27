@@ -10,6 +10,7 @@ from threading import Thread
 import bitstring
 import pickle
 import sys
+import os
 
 class NodeData(object):
     def __init__(self):
@@ -26,19 +27,23 @@ class Glider(object):
     def __init__(self):
         self.gliderid = 10
         
-        #self.um_10_path = '/dev/ttyS1'
-        self.um_10_path = 'COM10'
+        self.um_10_path = '/dev/ttyO1'
+        #self.um_10_path = 'COM10'
         
-        self.um_3_path = '/dev/ttyS0'
-        #self.um_array_path = '/dev/ttyE0'
-        self.um_array_path = 'COM12'
+        #self.um_3_path = '/dev/ttyS0'
+        # Array is actually the 3kHz modem... we are just logging.
+        self.um_array_path = '/dev/ttyO0'
+        #self.um_array_path = 'COM12'
         
-        #self.logpath = '/var/log/glider/'
-        self.logpath = 'c:/temp/glider/'
+        self.logpath = '/var/log/glider/'
+        #self.logpath = 'c:/temp/glider/'
         self.start_log()
         
-        self.syncpath = '/media/card/sync/'
-        self.syncpath = 'c:/temp/glider/'
+        self.syncpath = '/home/acomms/sync/toshore'
+        if not os.path.isdir(self.syncpath):
+            os.makedirs(self.syncpath)
+        
+        #self.syncpath = 'c:/temp/glider/'
         
         self.cstlogpath = self.syncpath + 'cst.log'
         
@@ -67,6 +72,9 @@ class Glider(object):
         logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
         self.logger = logging.getLogger("glider")
         self.logger.setLevel(logging.DEBUG)
+        # Create the log directory if it doesn't exist.
+        if not os.path.isdir(self.logpath):
+            os.makedirs(self.logpath)     
         fh = logging.FileHandler(self.logpath + 'glider.log')
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(logformat)
@@ -83,6 +91,10 @@ class Glider(object):
         self.cstlog_10k.setLevel(logging.INFO)
         self.cstlog_array = logging.getLogger("cst-array")
         self.cstlog_array.setLevel(logging.INFO)
+        
+        # Create the log directory if it doesn't exist.
+        if not os.path.isdir(self.cstlogpath):
+            os.makedirs(self.cstlogpath)        
         
         fh = logging.FileHandler(self.cstlogpath)
         fh.setLevel(logging.INFO)
