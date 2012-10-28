@@ -111,8 +111,9 @@ class BottomNode(object):
         sleep(10)
     
     def on_cst(self, cst, msg):
-        if not isinstance(cst, acomms.CycleStats):
-            raise TypeError("BottomNode.on_cst: not a CycleStats object")
+        if not isinstance(cst, CycleStats):
+            self.logger.error("BottomNode.on_cst: not a CycleStats object")
+            #raise TypeError("BottomNode.on_cst: not a CycleStats object")
         
         # Add this CST to the CST dictionary
         self.csts[cst.packed_timestamp] = cst
@@ -254,12 +255,12 @@ class BottomNode(object):
 
 if __name__ == '__main__':
     
-    if 'fasttest' not in sys.argv:
-        bn = BottomNode()
-        bn.start()
-    else:
+    if 'fasttest' in sys.argv:
         bn = BottomNode(hibernate_minutes=6, reply_timeout_secs=180)
         bn.start()
+    else:
+        bn = BottomNode()
+        bn.start()        
         
     
     

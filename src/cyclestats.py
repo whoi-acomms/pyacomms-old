@@ -58,7 +58,7 @@ class CycleStats(object):
                     uint:8=noise,
                     bool=pcm_on
                     '''
-    ts_epoch = datetime.datetime(2012, 2, 1)
+    ts_epoch = datetime.datetime(2012, 10, 1)
     
     packed_size = 13
     
