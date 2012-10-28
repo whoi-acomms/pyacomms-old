@@ -111,7 +111,7 @@ class BottomNode(object):
         sleep(10)
     
     def on_cst(self, cst, msg):
-        if not isinstance(cst, CycleStats):
+        if not isinstance(cst, acomms.CycleStats):
             raise TypeError("BottomNode.on_cst: not a CycleStats object")
         
         # Add this CST to the CST dictionary
@@ -212,10 +212,13 @@ class BottomNode(object):
         for frame_num in range(Rates[rate_num].numframes):
             framedata = bytearray([0x31, 0x11])
             for i in range(csts_per_frame):
-                currentidx = currentidx % len(cst_queue_keys)
-                packedcst = self.csts[cst_queue_keys[currentidx]].to_packed()
-                self.logger.debug("Sending CST: " + str(cst_queue_keys[currentidx]))
-                framedata.extend(packedcst.bytes)
+                try:
+                    currentidx = currentidx % len(cst_queue_keys)
+                    packedcst = self.csts[cst_queue_keys[currentidx]].to_packed()
+                    self.logger.debug("Sending CST: " + str(cst_queue_keys[currentidx]))
+                    framedata.extend(packedcst.bytes)
+                except:
+                    self.logger.exception("Exception packing CSTs:")
                 currentidx += 1
                 
             # Add this frame to the packet
@@ -255,7 +258,7 @@ if __name__ == '__main__':
         bn = BottomNode()
         bn.start()
     else:
-        bn = BottomNode(hibernate_minutes=6, reply_timeout_secs=60)
+        bn = BottomNode(hibernate_minutes=6, reply_timeout_secs=180)
         bn.start()
         
     
