@@ -154,31 +154,34 @@ class MessageParser:
             self.modem.set_host_clock_flag = False
     
     def CACST(self, msg):
-        '''
-        mode = int(msg['params'][0])
-        # Discard any PACKET_TIMEOUT CSTs for now
-        if mode == 2:
-            self.modem.daemonlog.warn("Got Packet Timeout CST")
-            return
+        try:
+            mode = int(msg['params'][0])
+            # Discard any PACKET_TIMEOUT CSTs for now
+            if mode == 2:
+                self.modem.daemonlog.warn("Got Packet Timeout CST")
+                return
+            
+            toa = str(msg['params'][1])
+            mfd_pow = int(msg['params'][4])
+            mfd_ratio = int(msg['params'][5])
+            rate_num = int(msg['params'][12])
+            psk_error = int(msg['params'][15])
+            bad_frames_num = int(msg['params'][18])
+            snr_in = float(msg['params'][20])
+            snr_out = float(msg['params'][21])
+            snr_sym = float(msg['params'][22])
+            mse = float(msg['params'][23])
+            dop = float(msg['params'][25])
+            noise = int(msg['params'][26])
+            
+            # Make a CycleStats
+            cst = CycleStats.from_values(toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, 
+                                         snr_in, snr_out, snr_sym, mse, dop, noise, pcm_on=self.modem.pcm_on)
+        except:
+            self.modem.daemonlog.warn("Error parsing CACST")
+            cst = None
+            
         
-        toa = str(msg['params'][1])
-        mfd_pow = int(msg['params'][4])
-        mfd_ratio = int(msg['params'][5])
-        rate_num = int(msg['params'][12])
-        psk_error = int(msg['params'][15])
-        bad_frames_num = int(msg['params'][18])
-        snr_in = float(msg['params'][20])
-        snr_out = float(msg['params'][21])
-        snr_sym = float(msg['params'][22])
-        mse = float(msg['params'][23])
-        dop = float(msg['params'][25])
-        noise = int(msg['params'][26])
-        
-        # Make a CycleStats
-        cst = CycleStats.from_values(toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, 
-                                     snr_in, snr_out, snr_sym, mse, dop, noise, pcm_on=self.modem.pcm_on)
-        '''
-        cst = None
         # Raise the event
         self.modem.on_cst(cst, msg)
         

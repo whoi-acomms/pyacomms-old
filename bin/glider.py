@@ -39,16 +39,16 @@ class Glider(object):
         #self.logpath = 'c:/temp/glider/'
         self.start_log()
         
-        self.syncpath = '/home/acomms/sync/toshore'
+        self.syncpath = '/home/acomms/sync/toshore/'
         if not os.path.isdir(self.syncpath):
             os.makedirs(self.syncpath)
         
         #self.syncpath = 'c:/temp/glider/'
         
-        self.cstlogpath = self.syncpath + 'cst.log'
+        self.cstlogpath = os.path.join(self.syncpath, 'cst.log')
         
-        self.nodedata_picklepath = self.syncpath + 'nodedata.pickle'
-        self.nodedata_array_picklepath = self.syncpath + 'nodedata_array.pickle'
+        self.nodedata_picklepath = os.path.join(self.syncpath, 'nodedata.pickle')
+        self.nodedata_array_picklepath = os.path.join(self.syncpath, 'nodedata_array.pickle')
         
         self.reply_delay_secs = 90
         
@@ -60,8 +60,8 @@ class Glider(object):
         
         self.ackthread = None
         
-        self.modem = Micromodem(name='modem-10k', logpath=(self.logpath))
-        self.arraymodem = Micromodem(name='modem-array', logpath=(self.logpath))
+        self.modem = Micromodem(name='modem3013', logpath=(self.logpath))
+        self.arraymodem = Micromodem(name='modem2002', logpath=(self.logpath))
         
         self.start_cst_log()
         
@@ -92,9 +92,7 @@ class Glider(object):
         self.cstlog_array = logging.getLogger("cst-array")
         self.cstlog_array.setLevel(logging.INFO)
         
-        # Create the log directory if it doesn't exist.
-        if not os.path.isdir(self.cstlogpath):
-            os.makedirs(self.cstlogpath)        
+          
         
         fh = logging.FileHandler(self.cstlogpath)
         fh.setLevel(logging.INFO)

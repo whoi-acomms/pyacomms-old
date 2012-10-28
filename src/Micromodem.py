@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import cmd,sys
+import cmd,sys,os
 from time import sleep, time
 from datetime import datetime
 from serial import Serial
@@ -94,6 +94,10 @@ class Micromodem(Serial):
             mtmaformat = logging.Formatter("%(asctime)sZ,RX,%(message)s", "%Y-%m-%d %H:%M:%S")
             self.nmealog = logging.getLogger(self.name + '_nmea')
             self.nmealog.setLevel(logging.DEBUG)
+            
+            # Create the log directory if it doesn't exist.
+            if not os.path.isdir(self.logpath):
+                os.makedirs(self.logpath)                 
             fh = logging.FileHandler(self.logpath + logfilename)
             fh.setLevel(logging.DEBUG)
             if self.logformat.lower() == "modemtma":
@@ -115,6 +119,10 @@ class Micromodem(Serial):
             logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
             self.daemonlog = logging.getLogger(self.name + "_pymodem")
             self.daemonlog.setLevel(logging.DEBUG)
+
+            # Create the log directory if it doesn't exist.
+            if not os.path.isdir(self.logpath):
+                os.makedirs(self.logpath)                             
             fh = logging.FileHandler(self.logpath + logfilename)
             fh.setLevel(logging.DEBUG)
             fh.setFormatter(logformat)
