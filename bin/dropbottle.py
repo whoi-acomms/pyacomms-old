@@ -9,6 +9,7 @@ from time import sleep
 import logging
 from threading import Thread
 import os
+import sys
 
 
 class DropBottle(object):
@@ -23,7 +24,8 @@ class DropBottle(object):
         self.um3013_serialport = '/dev/ttyO0'
         self.um2002_serialport = '/dev/ttyO1'
         self.um_baud = 19200
-        self.tx_interval_secs = 30
+        self.tx_interval_secs_3013 = 30
+        self.tx_interval_secs_2002 = 60
 
         # Set up the GPIO for the plug LED
         os.system('echo 229 > /sys/class/gpio/export')
@@ -122,13 +124,13 @@ class DropBottle(object):
         sleep(1)
         self.applog.info("[3013] Rate 1, {bw}Hz BW".format(bw=bandwidth))
         self.um3013.send_test_packet(127, 1)
-        sleep(self.tx_interval_secs)
+        sleep(self.tx_interval_secs_3013)
         self.applog.info("[3013] Rate 4, {bw}Hz BW".format(bw=bandwidth))
         self.um3013.send_test_packet(127, 4)
-        sleep(self.tx_interval_secs)
+        sleep(self.tx_interval_secs_3013)
         self.applog.info("[3013] Rate 5, {bw}Hz BW".format(bw=bandwidth))
         self.um3013.send_test_packet(127, 5)
-        sleep(self.tx_interval_secs - 1)
+        sleep(self.tx_interval_secs_3013 - 1)
 
 
     def do_2002_tx(self, bandwidth):
@@ -141,28 +143,30 @@ class DropBottle(object):
         sleep(1)
         self.applog.info("[2002] Upsweep, {bw}Hz BW".format(bw=bandwidth))
         self.um2002.send_sweep('psk')
-        sleep(self.tx_interval_secs - 1)
+        sleep(self.tx_interval_secs_2002 - 1)
 
         self.um2002.set_config('FMD', 1)
         sleep(1)
         self.applog.info("[2002] Rate 1, {bw}Hz BW, 1 Frame".format(bw=bandwidth))
         self.um2002.send_test_packet(127, 1, 1)
-        sleep(self.tx_interval_secs)
+        sleep(self.tx_interval_secs_2002)
         self.applog.info("[2002] Rate 4, {bw}Hz BW, 1 Frame".format(bw=bandwidth))
         self.um2002.send_test_packet(127, 4, 1)
-        sleep(self.tx_interval_secs)
+        sleep(self.tx_interval_secs_2002)
         self.applog.info("[2002] Rate 5, {bw}Hz BW, 1 Frame".format(bw=bandwidth))
         self.um2002.send_test_packet(127, 5, 1)
-        sleep(self.tx_interval_secs - 1)
+        sleep(self.tx_interval_secs_2002 - 1)
 
-    def do_standard_test(self):
+    def do_standard_test(self, do_3013, do_2002):
         while(True):
-            self.do_2002_tx(300)
-            self.do_2002_tx(500)
-            self.do_2002_tx(1250)
+            if do_2002:
+                self.do_2002_tx(300)
+                self.do_2002_tx(500)
+                self.do_2002_tx(1250)
 
-            self.do_3013_tx(2000)
-            self.do_3013_tx(4000)
+            if do_3013:
+                self.do_3013_tx(2000)
+                self.do_3013_tx(4000)
 
 
 
@@ -170,9 +174,24 @@ class DropBottle(object):
 
 if __name__ == '__main__':
     dbtl = DropBottle()
-
-    dbtl.setup_2002()
-    dbtl.setup_3013()
+    
+    if ('2002' not in sys.argv) and ('3013' not in sys.argv):
+        print("You must specify one or more transducers to run a test.")
+        print("Example: python dropbottle.py 2002 3013")
+        exit()
+    
+    if '2002' in sys.argv:
+        dbtl.setup_2002()
+        do_2002 = True
+    else:
+        do_2002 = False
+        
+    if '3013' in sys.argv:
+        dbtl.setup_3013()
+        do_3013 = True
+    else:
+        do_3013 = False
+           
 
     #dbtl.um3013.set_host_clock_from_modem()
 
@@ -180,6 +199,6 @@ if __name__ == '__main__':
 
     dbtl.led_start_blinking()
 
-    dbtl.do_standard_test()
+    dbtl.do_standard_test(do_2002=do_2002, do_3013=do_3013)
 
 

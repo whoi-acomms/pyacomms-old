@@ -105,8 +105,13 @@ class BottomNode(object):
         self.um.start_hibernate(self.hibernate_minutes, self.hibernate_delay_secs)
         sleep(1)
         
+        # Now, close all open files.
+        self.logger.info("Closing files and shutting down...")
+        self.um.disconnect()
+        self.um.CloseLoggers()
+        self.close_log()
+        
         # We're done.  Time to shutdown.
-        self.logger.info("Shutting down...")
         os.system('shutdown now')
         sleep(10)
     
@@ -165,6 +170,12 @@ class BottomNode(object):
         ch.setFormatter(logformat)
         self.logger.addHandler(fh)
         self.logger.addHandler(ch)
+        
+    def close_log(self):
+        for hdlr in self.logger.handlers:
+            hdlr.flush()
+            hdlr.close()
+            self.logger.removeHandler(hdlr)        
         
     def read_csts(self):
         try:
