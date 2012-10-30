@@ -20,7 +20,7 @@ class DropBottle(object):
 
     def __init__(self):
         self.onboard_ledpath = '/sys/class/leds/whoi:blue:gpio232/brightness'
-        self.logpath = '/home/acomms/pymodem/log/'
+        self.logpath = '/home/acomms/log/'
         self.um3013_serialport = '/dev/ttyO0'
         self.um2002_serialport = '/dev/ttyO1'
         self.um_baud = 19200
@@ -41,8 +41,8 @@ class DropBottle(object):
 
         self.led_state = 'off'
 
-        self.um3013 = Micromodem(logpath=(self.logpath + 'um3013/'))
-        self.um2002 = Micromodem(logpath=(self.logpath + 'um2002/'))
+        self.um3013 = Micromodem(name=um3013, logpath=(self.logpath + 'um3013/'))
+        self.um2002 = Micromodem(name=um2002, logpath=(self.logpath + 'um2002/'))
 
     def start_log(self):
         logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
