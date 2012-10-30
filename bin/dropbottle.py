@@ -158,16 +158,14 @@ class DropBottle(object):
         sleep(self.tx_interval_secs_2002 - 1)
 
     def do_standard_test(self, do_3013, do_2002):
-        while(True):
+        while(True):            
+            if do_3013:
+                self.do_3013_tx(2000)
+                self.do_3013_tx(4000)            
             if do_2002:
                 self.do_2002_tx(300)
                 self.do_2002_tx(500)
                 self.do_2002_tx(1250)
-
-            if do_3013:
-                self.do_3013_tx(2000)
-                self.do_3013_tx(4000)
-
 
 
 
