@@ -30,11 +30,11 @@ class BottomNode(object):
         self.gliderid = 10
         
         if hibernate_minutes == None:
-            self.hibernate_minutes = 6 * 60
+            self.hibernate_minutes = 2 * 60
         else:
             self.hibernate_minutes = hibernate_minutes
             
-        self.hibernate_delay_secs = 15
+        self.hibernate_delay_secs = 30
         
         if reply_timeout_secs == None:
             self.reply_timeout_secs = 5 * 60
@@ -110,10 +110,10 @@ class BottomNode(object):
         self.um.disconnect()
         self.um.CloseLoggers()
         self.close_log()
+        sleep(1)
         
         # We're done.  Time to shutdown.
-        os.system('shutdown now')
-        sleep(10)
+        os.system('/sbin/shutdown -h now')
     
     def on_cst(self, cst, msg):
         if not isinstance(cst, CycleStats):
@@ -267,7 +267,7 @@ class BottomNode(object):
 if __name__ == '__main__':
     
     if 'fasttest' in sys.argv:
-        bn = BottomNode(hibernate_minutes=6, reply_timeout_secs=180)
+        bn = BottomNode(hibernate_minutes=6, reply_timeout_secs=30)
         bn.start()
     else:
         bn = BottomNode()
