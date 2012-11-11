@@ -90,17 +90,21 @@ class GliderListen(object):
     def setup_3013(self):
         self.um3013.connect(self.um3013_path, self.um_baud)
         sleep(1)
+        self.um3013.set_config('BND', 0)
         self.um3013.set_config('FC0', 10000)
         self.um3013.set_config('BW0', 2000)
-        self.um3013.set_config('SRC', 53)
+        self.um3013.set_config('PCM', 0)
+        self.um3013.set_config('SRC', 10)
         sleep(1)
     
     def setup_2002(self):
         self.um2002.connect(self.um2002_path, self.um_baud)
         sleep(1)
+        self.um3013.set_config('BND', 0)
         self.um2002.set_config('FC0', 3750)
         self.um2002.set_config('BW0', 1250)
-        self.um2002.set_config('SRC', 52)
+        self.um2002.set_config('PCM', 0)
+        self.um2002.set_config('SRC', 30)
         sleep(1)
         
 

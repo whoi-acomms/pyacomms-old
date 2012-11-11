@@ -267,7 +267,7 @@ class Micromodem(Serial):
 
     def sendBinary(self, dest, binData, ack=False, src=None):
         ack = bool2int(ack)
-        if src is None: src = self.config["SRC"]
+        if src is None: src = self.id
         msg = { 'type' : "CCTXD", 'params':(src, dest, ack, toHexStr(binData)) }
         self.write_nmea( msg )
 
@@ -388,6 +388,16 @@ class Micromodem(Serial):
                                          int(cycleinfo.ack), cycleinfo.num_frames]}
         
         self.write_nmea(msg)
+        
+    def send_uplink_request(self, src_id, dest_id=None, rate_num=1, ack=False):
+        if dest_id is None:
+            dest_id = self.id
+            
+        #The number of frames isn't transmitted acoustically, so it doesn't matter
+        cycleinfo = CycleInfo(src_id, dest_id, rate_num, ack, 1)
+        
+        self.send_cycleinit(cycleinfo)
+        
 
     def send_uplink_frame(self,drqparams):
         if self.GetUplinkDataFxn is not None:
