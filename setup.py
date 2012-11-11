@@ -11,7 +11,7 @@ setup(
     author='Eric Gallimore, Andrew Beal',
     author_email='abeal@whoi.edu',
     packages=['acomms'],
-	package_dir={'acomms':'src'},
+	package_dir={'acomms':'acomms'},
     url='http://acomms.whoi.edu/',
     license='LICENSE.txt',
     description='Micromodem Python Tool.',
