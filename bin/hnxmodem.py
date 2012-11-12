@@ -13,7 +13,7 @@ import os
 class HnxModem(object):
     def __init__(self):
         self.command_file_path = '/home/acomms/sync/fromshore/mode'
-        self.syncpath = '/home/acomms/toshore/'
+        self.syncpath = '/home/acomms/sync/toshore/'
         self.cstlogpath = self.syncpath + 'cst.log'        
         
         self.um_10_path = '/dev/ttyO0'
@@ -115,6 +115,7 @@ class HnxModem(object):
         
     def setup_3013(self):
         self.um3013 = Micromodem(name='um3013', logpath=os.path.join(self.logpath, 'um3013/'))
+        self.um3013.connect(self.um_10_path, self.um_baud)
         sleep(1)
         self.um3013.set_config('BND', 0)
         self.um3013.set_config('FC0', 10000)

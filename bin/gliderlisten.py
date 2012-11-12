@@ -4,7 +4,7 @@ Created on Feb 10, 2012
 @author: Eric
 '''
 import logging
-from modem import Micromodem, Packet, CycleInfo, Rates, CycleStats
+from acomms import Micromodem, Packet, CycleInfo, Rates, CycleStats
 from time import sleep
 from threading import Thread
 import bitstring
