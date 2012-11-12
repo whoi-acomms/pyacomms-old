@@ -49,9 +49,17 @@ class Glider(object):
         self.ackthread = None
         
         self.modem = Micromodem(name='modem3013', logpath=(self.logpath))
-                
+        self.setup3013()
+        
         self.start_cst_log()
         
+    def setup3013(self):
+        self.modem.set_config('BND', 0)
+        self.modem.set_config('FC0', 10000)
+        self.modem.set_config('BW0', 2000)
+        self.modem.set_config('PCM', 0)
+        self.modem.set_config('SRC', self.gliderid)
+        sleep(1)        
         
     def start_log(self):
         # Configure logging
