@@ -30,7 +30,7 @@ class BottomNode(object):
         self.gliderid = 10
         
         if hibernate_minutes == None:
-            self.hibernate_minutes = 2 * 60
+            self.hibernate_minutes = 1 * 60
         else:
             self.hibernate_minutes = hibernate_minutes
             
@@ -57,6 +57,9 @@ class BottomNode(object):
         
     def start(self):
         # Keep track of wakes
+        # The following is a terrible hack to shut up for a week.
+        if self.wakecount < 8:
+            self.hibernate_minutes = 1500 # Near maximum value accepted by modem, 25 hours
         
         # Connect to the modem
         self.um.connect(self.modempath, 19200)

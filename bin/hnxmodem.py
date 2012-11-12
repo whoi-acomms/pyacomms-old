@@ -6,8 +6,6 @@ Created on Feb 10, 2012
 import logging
 from acomms import Micromodem, CycleStats
 from time import sleep
-from threading import Thread
-import bitstring
 import sys
 import os
 
@@ -18,7 +16,7 @@ class HnxModem(object):
         self.syncpath = '/home/acomms/toshore/'
         self.cstlogpath = self.syncpath + 'cst.log'        
         
-        self.um_10_path = '/dev/ttyO0'        
+        self.um_10_path = '/dev/ttyO0'
         self.um_baud = 19200
         
         self.logpath = '/home/acomms/log/hnxmodem/'
