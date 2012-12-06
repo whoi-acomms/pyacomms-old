@@ -163,7 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('FileType', default='RawNMEA',choices=['RawNMEA','ModemTMA','Other'], help='Type of File to Be processed (RawNMEA,ModemTMA,Other)', metavar='Type')
     parser.add_argument('Filename', help='File to be processed')
     
-    args = parser.parse_args(['ModemTMA', 'C:\Users\Andrew\My Documents\ModemTMA Logs\NMEA-COM60-2012-10-22-19-33-30.csv'])
+    args = parser.parse_args()
     
     print args
     
