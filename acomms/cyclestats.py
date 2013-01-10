@@ -141,18 +141,12 @@ class CycleStats(object):
     
     @classmethod
     def from_values(cls, toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, snr_in, snr_out, snr_sym, 
-                 mse, dop, noise, pcm_on=False, date=None):
+                 mse, dop, noise, pcm_on=False):
                 
-        
-        
-        if date == None:
-            date = datetime.date.today()
-        
+       
         values = dict.fromkeys(CycleStats.fields)
         
-        values['timestamp'] = datetime.datetime.combine(date,
-                                         datetime.time(int(toa[0:2]), int(toa[2:4]), int(toa[4:6])))
-                                                 
+        values['timestamp'] = toa                                         
         values['mfd_pow'] = mfd_pow
         values['mfd_ratio'] = mfd_ratio
         values['rate_num'] = rate_num

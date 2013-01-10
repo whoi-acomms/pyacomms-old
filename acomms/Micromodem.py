@@ -31,10 +31,8 @@ class Micromodem(Serial):
         Serial.__init__(self)
         
         name = str(name)
-        if name.isalnum():
-            self.name = str(name)
-        else:
-            self.name = "modemx"
+        # Strip non-alphanumeric characters from name
+        self.name = ''.join([ch for ch in name if ch.isalnum()])
 
         self.logpath = logpath
         if self.logpath[-1] != '/':
@@ -60,6 +58,8 @@ class Micromodem(Serial):
         
         self.rxframe_listeners = []
         self.cst_listeners = []
+        
+        self.cst_queue = Queue()
         
         self.id = -1
         self.asd = False
@@ -308,6 +308,7 @@ class Micromodem(Serial):
         
     def on_cst(self, cst, msg):
         self.daemonlog.debug("Got CST message")
+        self.cst_queue.put_nowait(cst)
         for func in self.cst_listeners: 
             func(cst, msg) # Pass on the CST message.
     
@@ -443,6 +444,21 @@ class Micromodem(Serial):
         msg = {'type':'CCCLQ', 'params':[0,]}
         self.write_nmea(msg)
         # The actual clock setting is done by the CACLQ parser when the flag is true.
+        
+    def wait_for_cst(self, timeout=None):
+        ''' This is not thread-safe, or even multiple-consumer safe.'''
+        self.cst_queue = Queue()
+        if timeout is None:
+            timeout = 0
+        
+        try:
+            cst = self.cst_queue.get(block=True, timeout=timeout)
+        except Queue.Empty:
+            cst = None
+            
+        return cst
+        
+        
 
 class Message(dict):
     def __init__(self, raw):

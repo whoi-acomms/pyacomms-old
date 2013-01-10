@@ -2,6 +2,7 @@ from messageparams import CycleInfo, DrqParams, DataFrame, data_from_hexstring, 
 from cyclestats import CycleStats
 import commstate
 from binascii import hexlify, unhexlify
+import datetime
 import sys
 import traceback
 import os
@@ -90,7 +91,7 @@ class MessageParser:
         # Sigh.  This really shouldn't be used to signal data timeouts, but it is.
         # This doesn't account for most of the CAERR messages.
         if msg["params"][1] == "DATA_TIMEOUT":
-            frame_num = msg["params"][3]
+            frame_num = msg["params"][2]
             self.modem.state.got_datatimeout(frame_num)
         else:
             hhmmss = msg["params"][0]
@@ -162,7 +163,11 @@ class MessageParser:
                 if mode == 2:
                     return
                 
-                toa = str(msg['params'][2])
+                # Parse the TOA field into a fractional datetime object.
+                whole, fract = str(msg['params'][2]).split('.')
+                toa = datetime.datetime.strptime(whole, '%Y%m%d%H%M%S')
+                toa = toa.replace(microsecond = int(fract))
+                
                 toaMode = int(msg['params'][3])
                 mfd_peak = int(msg['params'][4])
                 mfd_pow = int(msg['params'][5])
@@ -198,7 +203,11 @@ class MessageParser:
                 if mode == 2:
                     return
                 
-                toa = str(msg['params'][1])
+                # Use today's date, since this version of the CST message doesn't include a date.
+                # Also, don't bother parsing the fractional seconds for the uM1.
+                toastr = str(msg['params'][1])
+                toa = datetime.datetime.combine(datetime.date.today() ,datetime.time(int(toastr[0:2]), int(toastr[2:4]), int(toastr[4:6])))                
+                
                 mfd_pow = int(msg['params'][4])
                 mfd_ratio = int(msg['params'][5])
                 rate_num = int(msg['params'][12])
@@ -215,7 +224,7 @@ class MessageParser:
             # Make a CycleStats
             cst = CycleStats.from_values(toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, 
                                          snr_in, snr_out, snr_sym, mse, dop, noise, pcm_on=self.modem.pcm_on)
-        except:
+        except Exception, ex:
             self.modem.daemonlog.warn("Error parsing CACST")
             cst = None
             

@@ -40,7 +40,8 @@ class DrqParams(object):
         
 
 class DataFrame(object):
-    def __init__(self, src, dest, ack, frame_num, data):
+    def __init__(self, src, dest, ack, frame_num, data, bad_crc=False):
+        self.bad_crc = bad_crc
         self.src = src
         self.dest = dest
         self.ack = ack
@@ -62,9 +63,6 @@ class Packet(object):
                              (len(self.frames) + 1), framedata)
         self.frames.append(newframe)
             
-class CycleStats(object):
-    def __init__(self, ):
-        pass
         
 class PacketRate(object):
     def __init__(self, name, number, framesize, numframes):
@@ -85,3 +83,13 @@ Rates = {0:PacketRate('FH-FSK', 0, 32, 1),
          4:PacketRate('BCH 64:10', 4, 256, 2),
          5:PacketRate('Hamming 14:9', 5, 256, 8),
          6:PacketRate('DSS 1/15 (32B frames)', 6, 32, 6)}
+
+
+class RxCycle(object):
+    def __init__(self, cyclestats, packet=None, ):
+        self.packet = None
+        
+        
+        pass
+    
+    
