@@ -2,6 +2,7 @@
 import cmd,sys,os
 from time import sleep, time
 from datetime import datetime
+import re
 from serial import Serial
 from threading import Thread
 from Queue import Empty, Full
@@ -59,7 +60,8 @@ class Micromodem(Serial):
         self.rxframe_listeners = []
         self.cst_listeners = []
         
-        self.cst_queue = Queue()
+        self.incoming_cst_queues = []
+        self.incoming_msg_queues = []
         
         self.id = -1
         self.asd = False
@@ -106,7 +108,7 @@ class Micromodem(Serial):
                 fh.setFormatter(logformat)
             if consolelog != 'DISABLED':
                 ch = logging.StreamHandler()
-                ch.setLevel(logging.INFO)
+                ch.setLevel(consolelog)
                 ch.setFormatter(logformat)
                 self.nmealog.addHandler(ch)
             self.nmealog.addHandler(fh)
@@ -182,6 +184,13 @@ class Micromodem(Serial):
                 self.parser.parse(msg)
                 
                 for func in self.listeners: func(msg) # Pass on the message.
+                
+                # Append this message to all listening queues
+                for q in self.incoming_msg_queues:
+                    try:
+                        q.put_nowait(msg)
+                    except:
+                        self.daemonlog.warn("Error appending to incoming message queue")
             except ChecksumException:
                 self.daemonlog.warn("NMEA Checksum Error: %s" % (msg.rstrip('\r\n')))
             except:
@@ -260,16 +269,6 @@ class Micromodem(Serial):
         self.write_nmea( msg )
         
 
-    def setConfigParam(self, param, value):
-        # luckily, all param values are currently int's.
-        msg = { 'type':"CCCFG", 'params':[param, value] }
-        self.write_nmea( msg )
-
-    def sendBinary(self, dest, binData, ack=False, src=None):
-        ack = bool2int(ack)
-        if src is None: src = self.id
-        msg = { 'type' : "CCTXD", 'params':(src, dest, ack, toHexStr(binData)) }
-        self.write_nmea( msg )
 
     def rawReadline(self):
         """Returns a raw message from the modem."""
@@ -308,9 +307,16 @@ class Micromodem(Serial):
         
     def on_cst(self, cst, msg):
         self.daemonlog.debug("Got CST message")
-        self.cst_queue.put_nowait(cst)
+
         for func in self.cst_listeners: 
             func(cst, msg) # Pass on the CST message.
+            
+        # Append this message to all listening queues
+        for q in self.incoming_cst_queues:
+            try:
+                q.put_nowait(cst)
+            except:
+                self.daemonlog.warn("Error appending to incoming CST queue")        
     
     def send_packet(self, packet):
         # FIXME this is a hack
@@ -444,21 +450,61 @@ class Micromodem(Serial):
         msg = {'type':'CCCLQ', 'params':[0,]}
         self.write_nmea(msg)
         # The actual clock setting is done by the CACLQ parser when the flag is true.
+    
+    def attach_incoming_cst_queue(self, queue_to_attach):
+        self.incoming_cst_queues.append(queue_to_attach)
+        
+    def detach_incoming_cst_queue(self, queue_to_detach):
+        self.incoming_cst_queues.remove(queue_to_detach)    
         
     def wait_for_cst(self, timeout=None):
-        ''' This is not thread-safe, or even multiple-consumer safe.'''
-        self.cst_queue = Queue()
-        if timeout is None:
-            timeout = 0
-        
+        incoming_cst_queue = Queue()
+        self.attach_incoming_cst_queue(incoming_cst_queue)
+                
         try:
-            cst = self.cst_queue.get(block=True, timeout=timeout)
-        except Queue.Empty:
+            cst = incoming_cst_queue.get(block=True, timeout=timeout)
+        except Empty:
             cst = None
+        
+        self.detach_incoming_cst_queue(incoming_cst_queue)
             
         return cst
+    
+    def attach_incoming_msg_queue(self, queue_to_attach):
+        self.incoming_msg_queues.append(queue_to_attach)
         
+    def detach_incoming_msg_queue(self, queue_to_detach):
+        self.incoming_msg_queues.remove(queue_to_detach)
         
+    def wait_for_regex(self, regex_pattern, timeout=None):
+        incoming_msg_queue = Queue()
+        self.attach_incoming_msg_queue(incoming_msg_queue)
+        
+        regex = re.compile(regex_pattern)
+        matching_msg = None
+        
+        remaining_time = timeout
+        if remaining_time is not None:
+            # If this program is ported to Python 3, this should be changed to use time.steady().
+            end_time = time() + timeout    
+        
+        while (remaining_time is None) or (remaining_time > 0):
+            try:
+                new_msg = incoming_msg_queue.get(timeout=remaining_time)
+                matchobj = regex.search(new_msg['raw'])
+                if matchobj is not None:
+                    matching_msg = new_msg
+                    break
+                else:
+                    if remaining_time is not None:
+                        remaining_time = end_time - time()
+                    continue
+            except Empty:
+                break
+        
+        self.detach_incoming_msg_queue(incoming_msg_queue)
+            
+        return matching_msg    
 
 class Message(dict):
     def __init__(self, raw):

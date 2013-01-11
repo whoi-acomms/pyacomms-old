@@ -7,6 +7,7 @@ Created on Jan 25, 2012
 from messageparams import Packet, Rates
 
 import logging
+from time import sleep
 
 class CommState(object):
     '''

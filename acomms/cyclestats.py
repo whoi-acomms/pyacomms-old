@@ -39,9 +39,11 @@ def unclampfixed(clamped, minn, decimalplaces):
 
 class CycleStats(object):
     '''
-    classdocs
+    A single set of Receive Cycle Statistics
     '''
-    fields = ('timestamp', 'mfd_pow', 'mfd_ratio', 'rate_num', 'psk_error', 'bad_frames_num', 
+    
+    
+    fields = ('mode', 'timestamp', 'toa_mode', 'mfd_pow', 'mfd_ratio', 'rate_num', 'psk_error', 'bad_frames_num', 
               'snr_in', 'snr_out', 'snr_sym', 'mse', 'dop', 'noise', 'pcm_on')
         
     packfmtstr = '''uint:24=timestamp,
@@ -140,13 +142,15 @@ class CycleStats(object):
         return self
     
     @classmethod
-    def from_values(cls, toa, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, snr_in, snr_out, snr_sym, 
+    def from_values(cls, mode, toa, toa_mode, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, snr_in, snr_out, snr_sym, 
                  mse, dop, noise, pcm_on=False):
                 
        
         values = dict.fromkeys(CycleStats.fields)
         
-        values['timestamp'] = toa                                         
+        values['mode'] = mode
+        values['timestamp'] = toa
+        values['toa_mode'] = toa_mode
         values['mfd_pow'] = mfd_pow
         values['mfd_ratio'] = mfd_ratio
         values['rate_num'] = rate_num
@@ -163,6 +167,80 @@ class CycleStats(object):
         self = CycleStats(values)
         return self
     
+    @classmethod
+    def from_nmea_msg(cls, msg):
+    
+        versionNumber = int(msg['params'][0])
+        if( versionNumber >=6):
+            mode = int(msg['params'][1])
+            # Discard any PACKET_TIMEOUT CSTs for now
+            if mode == 2:
+                return
+            
+            # Parse the TOA field into a fractional datetime object.
+            whole, fract = str(msg['params'][2]).split('.')
+            toa = datetime.datetime.strptime(whole, '%Y%m%d%H%M%S')
+            toa = toa.replace(microsecond = int(fract))
+            
+            toa_mode = int(msg['params'][3])
+            mfd_peak = int(msg['params'][4])
+            mfd_pow = int(msg['params'][5])
+            mfd_ratio = int(msg['params'][6])
+            mfdSpl= int(msg['params'][7])
+            shfAgn = int(msg['params'][8])
+            ainShift = int(msg['params'][9])
+            ainPShift = int(msg['params'][10])
+            mfdShift = int(msg['params'][11])
+            p2bshift = int(msg['params'][12])               
+            rate_num = int(msg['params'][13])
+            src = int(msg['params'][14])
+            dest = int(msg['params'][15])
+            psk_error = int(msg['params'][16])
+            packetType = int(msg['params'][17])
+            nFrames = int(msg['params'][18])
+            bad_frames_num = int(msg['params'][19])
+            snrRss = int(msg['params'][20])
+            snr_in = float(msg['params'][21])
+            snr_out = float(msg['params'][22])
+            snr_sym = float(msg['params'][23])
+            mse = float(msg['params'][24])
+            dqf = int(msg['params'][25])
+            dop = float(msg['params'][26])
+            noise = int(msg['params'][27])
+            carrier = int(msg['params'][28])
+            bandwidth = int(msg['params'][29])
+
+
+        else:             
+            mode = int(msg['params'][0])
+            # Discard any PACKET_TIMEOUT CSTs for now
+            if mode == 2:
+                return
+            
+            # Use today's date, since this version of the CST message doesn't include a date.
+            # Also, don't bother parsing the fractional seconds for the uM1.
+            toastr = str(msg['params'][1])
+            toa = datetime.datetime.combine(datetime.date.today() ,datetime.time(int(toastr[0:2]), int(toastr[2:4]), int(toastr[4:6])))                
+            toa_mode = -100
+            mfd_pow = int(msg['params'][4])
+            mfd_ratio = int(msg['params'][5])
+            rate_num = int(msg['params'][12])
+            psk_error = int(msg['params'][15])
+            bad_frames_num = int(msg['params'][18])
+            snr_in = float(msg['params'][20])
+            snr_out = float(msg['params'][21])
+            snr_sym = float(msg['params'][22])
+            mse = float(msg['params'][23])
+            dop = float(msg['params'][25])
+            
+            noise = int(msg['params'][26])
+        
+                   
+        # Make a CycleStats
+        cst = CycleStats.from_values(mode, toa, toa_mode, mfd_pow, mfd_ratio, rate_num, psk_error, bad_frames_num, 
+                                     snr_in, snr_out, snr_sym, mse, dop, noise)
+    
+        return cst
     
         
                 
