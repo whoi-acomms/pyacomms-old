@@ -37,16 +37,40 @@ def unclampfixed(clamped, minn, decimalplaces):
     return clamped
 
 
-class CycleStats(object):
+class CycleStats(dict):
     '''
     A single set of Receive Cycle Statistics
     '''
     
+    # This automagically retrieves values from the dictionary when they are referenced as properties.
+    # Whether this is awesome or sucks is open to debate.
+    def __getattr__(self, item):
+        """Maps values to attributes.
+        Only called if there *isn't* an attribute with this name
+        """
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            raise AttributeError(item)
+        
+    def __setattr__(self, item, value):
+        """Maps attributes to values.
+        Only if we are initialised
+        """
+        if not self.__dict__.has_key('_CycleStats__initialized'):  # this test allows attributes to be set in the __init__ method
+            return dict.__setattr__(self, item, value)
+        elif self.__dict__.has_key(item):       # any normal attributes are handled normally
+            dict.__setattr__(self, item, value)
+        else:
+            self.__setitem__(item, value)    
     
-    fields = ('mode', 'timestamp', 'toa_mode', 'mfd_pow', 'mfd_ratio', 'rate_num', 'psk_error', 'bad_frames_num', 
+    
+    
+    
+    fields = ('mode', 'toa', 'toa_mode', 'mfd_pow', 'mfd_ratio', 'rate_num', 'psk_error', 'bad_frames_num', 
               'snr_in', 'snr_out', 'snr_sym', 'mse', 'dop', 'noise', 'pcm_on')
         
-    packfmtstr = '''uint:24=timestamp,
+    packfmtstr = '''uint:24=toa,
                     uint:10=mfd_pow,
                     uint:14=mfd_ratio,
                     uint:3=rate_num,
@@ -64,8 +88,13 @@ class CycleStats(object):
     
     packed_size = 13
     
+    #For backward compatibility with classes that directly access the values dict.
+    @property
+    def values(self):
+        return self
     
-
+    # We use the default dictionary initializer
+    '''
     def __init__(self, valuesdict):
         # make sure that the dictionary is complete
         for field in CycleStats.fields:
@@ -73,15 +102,16 @@ class CycleStats(object):
                 raise KeyError("Invalid dictionary passed to CycleStats constructor.")
         
         self.values = valuesdict
+    '''    
         
     def __str__(self):
         hrstr = "{ts} Rate: {rate_num:.0f}\t PSK Error: {psk_error:.0f}\tBad Frames: {bad_frames:.0f}\tInput SNR: {snr_in:.1f}\tMSE: {mse:.1f}".format(
-                    ts=self.values['timestamp'], rate_num=self.values['rate_num'], snr_in=self.values['snr_in'], 
+                    ts=self.values['toa'], rate_num=self.values['rate_num'], snr_in=self.values['snr_in'], 
                      mse=self.values['mse'], bad_frames=(self.values['bad_frames_num']*10e7), psk_error=(self.values['psk_error']*10e6))
         return hrstr
     
     def get_packed_timestamp(self):
-        return (calendar.timegm(self.values['timestamp'].utctimetuple()) - 
+        return (calendar.timegm(self.values['toa'].utctimetuple()) - 
                 calendar.timegm(CycleStats.ts_epoch.utctimetuple()))
         
     packed_timestamp = property(get_packed_timestamp)
@@ -95,7 +125,7 @@ class CycleStats(object):
         
         clampvals = dict.fromkeys(CycleStats.fields)
         
-        clampvals['timestamp'] = self.get_packed_timestamp()
+        clampvals['toa'] = self.get_packed_timestamp()
         
         clampvals['mfd_pow'] = clampfixed(values['mfd_pow'], -30, 40, 0)
         clampvals['mfd_ratio'] = clampfixed(values['mfd_ratio'], 0, 16383, 0)
@@ -123,7 +153,7 @@ class CycleStats(object):
         
         values = dict.fromkeys(CycleStats.fields)
         
-        values['timestamp'] = datetime.datetime.utcfromtimestamp(
+        values['toa'] = datetime.datetime.utcfromtimestamp(
                                 packedlist[0] + calendar.timegm(CycleStats.ts_epoch.utctimetuple()))
         values['mfd_pow'] = unclampfixed(packedlist[1], -30, 0)
         values['mfd_ratio'] = unclampfixed(packedlist[2], 0, 0)
@@ -149,7 +179,7 @@ class CycleStats(object):
         values = dict.fromkeys(CycleStats.fields)
         
         values['mode'] = mode
-        values['timestamp'] = toa
+        values['toa'] = toa
         values['toa_mode'] = toa_mode
         values['mfd_pow'] = mfd_pow
         values['mfd_ratio'] = mfd_ratio
@@ -168,7 +198,7 @@ class CycleStats(object):
         return self
     
     @classmethod
-    def from_nmea_msg(cls, msg):
+    def from_nmea_msg(cls, msg, log_datetime=None):
     
         versionNumber = int(msg['params'][0])
         if( versionNumber >=6):
@@ -217,10 +247,13 @@ class CycleStats(object):
             if mode == 2:
                 return
             
-            # Use today's date, since this version of the CST message doesn't include a date.
-            # Also, don't bother parsing the fractional seconds for the uM1.
-            toastr = str(msg['params'][1])
-            toa = datetime.datetime.combine(datetime.date.today() ,datetime.time(int(toastr[0:2]), int(toastr[2:4]), int(toastr[4:6])))                
+            if log_datetime is not None:
+                toa = log_datetime
+            else:
+                # Use today's date, since this version of the CST message doesn't include a date.
+                # Also, don't bother parsing the fractional seconds for the uM1.
+                toastr = str(msg['params'][1])
+                toa = datetime.datetime.combine(datetime.date.today() ,datetime.time(int(toastr[0:2]), int(toastr[2:4]), int(toastr[4:6])))                
             toa_mode = -100
             mfd_pow = int(msg['params'][4])
             mfd_ratio = int(msg['params'][5])
@@ -241,6 +274,17 @@ class CycleStats(object):
                                      snr_in, snr_out, snr_sym, mse, dop, noise)
     
         return cst
+
+class CycleStatsList(list):
+    # We want to do list-ish things, with some extra sauce.
     
+    def to_dict_of_lists(self):
+        dol = {}        
+        for field in CycleStats.fields:
+            dol[field] = [cst[field] for cst in self]
         
-                
+        return dol
+    
+    
+            
+    

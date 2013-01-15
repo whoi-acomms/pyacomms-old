@@ -2,6 +2,7 @@ import testcase
 from acomms import Micromodem
 from time import sleep
 from collections import namedtuple
+import plotter
 
 class SimpleTestScript(object):
     
@@ -20,13 +21,18 @@ class SimpleTestScript(object):
         
         tfmsg = {True:'Pass', False:'Fail', None:'Error'}
         
-        for run_num in range(10):
+        for run_num in range(2):
             this_run_result = dl_rate1.run()
             print("{}: {}".format(this_run_result.number, tfmsg[this_run_result.passed]))
             
         print("Completed {} runs, Overall {}".format(dl_rate1.runcount, tfmsg[dl_rate1.results.all_runs_passed]))
+        
+        self.plot_results(dl_rate1.results)
             
         
+    def plot_results(self, dl_results):
+        results_list = dl_results.run_results
+        plotter.plot_results(results_list)
         
 
 sts = SimpleTestScript()

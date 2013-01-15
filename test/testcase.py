@@ -25,12 +25,10 @@ class OneToOneUm1DownlinkResults(object):
         return this_run_result
     
 class OneToOneUm1DownlinkCase(TestCase):
-    _runcount = 0
+    
     @property
     def runcount(self):
         return self._runcount
-    
-    results = OneToOneUm1DownlinkResults()
     
     @property
     def description(self):
@@ -48,8 +46,13 @@ class OneToOneUm1DownlinkCase(TestCase):
     def __init__(self, tx_modem, rx_modem, timeout=30, rate_num=1, 
                  num_frames=None, name="One-to-one Downlink", 
                  pass_criteria_list=None):
+        # These asserts are just here to make Wing do Intellisense
         assert isinstance(tx_modem, Micromodem)
         assert isinstance(rx_modem, Micromodem)    
+        
+        self._runcount = 0
+        
+        self.results = OneToOneUm1DownlinkResults()
 
         self.timeout = timeout
         
@@ -101,7 +104,7 @@ def check_cst_values(cst, criteria_list):
     # pass the specific failures on in some later implementation.
     for criterion in criteria_list:
         field, operator, value = criterion
-        evalstr = "cst.values['{field}'] {operator} {value}".format(field=field, operator=operator, value=value)
+        evalstr = "cst['{field}'] {operator} {value}".format(field=field, operator=operator, value=value)
         thisresult = eval(evalstr)
         result = result and thisresult
         
