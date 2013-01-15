@@ -9,6 +9,7 @@ import glob
 import pickle
 import argparse
 import csv
+import operator
 
 CstParseResult = namedtuple('CstParseResult', 'cst_list line_count error_count')
 
@@ -135,6 +136,7 @@ if __name__ == '__main__':
     ap.add_argument("-c", "--csv", help="Save csv file with specified name")
     ap.add_argument("-p", "--console", action='store_true', help="Print human-readable CST values to console")
     ap.add_argument("--silent", action='store_true', help="Don't print progress messages")
+    ap.add_argument("--sort", default="oldfirst", choices=["none", "oldfirst", "newfirst"], help="Sort the CSTs by time in the specified direction prior to generating output")
     ap.add_argument("log_filenames", nargs='+', help="File name(s) of log files to process.  Wildcards are OK.")
     
     args = ap.parse_args()
@@ -147,6 +149,13 @@ if __name__ == '__main__':
     
     # First, try to parse the files we were given.
     cst_list = get_csts_from_log_files(filename_list, console_progress=show_progress)[0]
+    
+    if args.sort is not "none":
+        if args.sort is "oldfirst":
+            reverse = False
+        else:
+            reverse = True
+        cst_list.sort(key=operator.itemgetter('toa'), reverse=reverse)
        
     # Now, choose what to do.
     if args.console:
