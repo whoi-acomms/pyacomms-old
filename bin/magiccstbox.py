@@ -15,7 +15,7 @@ CstParseResult = namedtuple('CstParseResult', 'cst_list line_count error_count')
 def _bareprint(text):
     print(text, sep='', end='')
    
-def get_csts_from_log_file(log_filename, console_progress=False):
+def get_csts_from_log_file(log_filename, console_progress=False, drop_packet_timeout=True):
     """ Get a CycleStatsList containing the data from all the CACST messages in 
     the specified log file.
     
@@ -53,7 +53,7 @@ def get_csts_from_log_file(log_filename, console_progress=False):
                     # look for a date in the first part of the string
                     line_timestamp = dateutil.parser.parse(line[:dollar_pos], fuzzy=True)
                     msg = Message(line[dollar_pos:])
-                    cst = CycleStats.from_nmea_msg(msg, log_datetime=line_timestamp)
+                    cst = CycleStats.from_nmea_msg(msg, log_datetime=line_timestamp, drop_packet_timeout=drop_packet_timeout)
                     cst_list.append(cst)
                 except:
                     # We should do something, but we won't.
@@ -64,7 +64,7 @@ def get_csts_from_log_file(log_filename, console_progress=False):
     
     return CstParseResult(cst_list, line_count, error_count)
 
-def get_csts_from_log_files(log_filename_list, console_progress=False):
+def get_csts_from_log_files(log_filename_list, console_progress=False, drop_packet_timeout=True):
     """ Get a CycleStatsList containing the data from all the CACST messages in 
     the specified log files.
     
@@ -130,39 +130,48 @@ def print_csts_to_console(cst_list):
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser(description='Magically transform CST messages into something useful.')
-    ap.add_argument("-m", "--matfile", help="save Matlab .MAT file with specified name")
-    ap.add_argument("-k", "--pickle", help="save Python pickle file with specified name")
-    ap.add_argument("-c", "--csv", help="save csv file with specified name")
-    ap.add_argument("--console", action='store_true', help="print human-readable CST values to console")
-    ap.add_argument("log_filenames", nargs='+', help="file name(s) of log files to process")
+    ap.add_argument("-m", "--matfile", help="Save Matlab .MAT file with specified name")
+    ap.add_argument("-k", "--pickle", help="Save Python pickle file with specified name")
+    ap.add_argument("-c", "--csv", help="Save csv file with specified name")
+    ap.add_argument("-p", "--console", action='store_true', help="Print human-readable CST values to console")
+    ap.add_argument("--silent", action='store_true', help="Don't print progress messages")
+    ap.add_argument("log_filenames", nargs='+', help="File name(s) of log files to process.  Wildcards are OK.")
     
     args = ap.parse_args()
     
     filename_list = []
     for filename in args.log_filenames:
         filename_list.extend(glob.glob(filename))
+        
+    show_progress = not args.silent
     
     # First, try to parse the files we were given.
-    cst_list = get_csts_from_log_files(filename_list, console_progress=True)[0]
+    cst_list = get_csts_from_log_files(filename_list, console_progress=show_progress)[0]
        
     # Now, choose what to do.
     if args.console:
         print_csts_to_console(cst_list)
     
     if args.matfile:
-        _bareprint("Writing Matlab MAT file to {}...".format(args.matfile))
+        if show_progress:
+            _bareprint("Writing Matlab MAT file to {}...".format(args.matfile))
         save_matlab_from_csts(args.matfile, cst_list)
-        print("Done.")
+        if show_progress:
+            print("Done.")
     
     if args.pickle:
-        _bareprint("Writing pickle file to {}...".format(args.pickle))
+        if show_progress:
+            _bareprint("Writing pickle file to {}...".format(args.pickle))
         save_pickle_from_csts(args.pickle, cst_list)
-        print("Done.")
+        if show_progress:
+            print("Done.")
         
     if args.csv:
-        _bareprint("Writing CSV file to {}...".format(args.csv))
+        if show_progress:
+            _bareprint("Writing CSV file to {}...".format(args.csv))
         save_csv_from_csts(args.csv, cst_list)
-        print("Done.")
+        if show_progress:
+            print("Done.")
     
 
     
