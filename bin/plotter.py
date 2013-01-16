@@ -21,6 +21,8 @@ from PySide.QtGui import *
 from acomms import CycleStats, CycleStatsList
 import magiccstbox
 
+
+
 os.environ['QT_API'] = 'pyside'
 import matplotlib
 matplotlib.use('Qt4Agg')
@@ -127,7 +129,9 @@ class AppForm(QMainWindow):
             for row in xrange(nrows):
                 ydata = self.cst_dol[plot_fields[row]]
                 axes = self.fig.add_subplot(nrows, ncols, row)
-                axes.plot(xdata, ydata, marker=".", linewidth=self.slider.value())
+                axes.plot(xdata, ydata, marker=".", linewidth=1)
+                axes.set_ylabel(plot_fields[row])
+
         
         else:        
             
@@ -227,7 +231,7 @@ class AppForm(QMainWindow):
         plotsection = QVBoxLayout()
         plotsection.addWidget(self.mpl_toolbar)
         plotsection.addWidget(toparea)
-        plotsection.addLayout(hbox)
+        #plotsection.addLayout(hbox)
         plotsectionwidget = QWidget()
         plotsectionwidget.setLayout(plotsection)
         
