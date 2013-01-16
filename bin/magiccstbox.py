@@ -10,6 +10,7 @@ import pickle
 import argparse
 import csv
 import operator
+import plotter
 
 CstParseResult = namedtuple('CstParseResult', 'cst_list line_count error_count')
 
@@ -111,7 +112,7 @@ def save_pickle_from_csts(pickle_file_name, cst_list, pickle_protocol=2):
         pickle.dump(cst_list, picklefile, protocol=pickle_protocol)
         
 def save_csv_from_csts(csv_file_name, cst_list, write_header=True):
-    # "If csvfile is a file object, it must be opened with the ‘b’ flag on platforms where that makes a difference."
+    # "If csvfile is a file object, it must be opened with the b flag on platforms where that makes a difference."
     with open(csv_file_name, 'wb') as csvfile:
         dw = csv.DictWriter(csvfile, CycleStats.fields, extrasaction='ignore')
         if write_header:
@@ -135,6 +136,7 @@ if __name__ == '__main__':
     ap.add_argument("-k", "--pickle", help="Save Python pickle file with specified name")
     ap.add_argument("-c", "--csv", help="Save csv file with specified name")
     ap.add_argument("-p", "--console", action='store_true', help="Print human-readable CST values to console")
+    ap.add_argument("-g", "--gui", action='store_true', help="Plot CSTs in interactive GUI (experimental)")
     ap.add_argument("--silent", action='store_true', help="Don't print progress messages")
     ap.add_argument("--sort", default="oldfirst", choices=["none", "oldfirst", "newfirst"], help="Sort the CSTs by time in the specified direction prior to generating output. Default is 'oldfirst'.")
     ap.add_argument("log_filenames", nargs='+', help="File name(s) of log files to process.  Wildcards are OK.")
@@ -182,6 +184,9 @@ if __name__ == '__main__':
         if show_progress:
             print("Done.")
     
+    if args.gui:
+        print("Starting Magic CST GUI (this may take a moment)...")
+        plotter.plot_csts(cst_list)
 
     
 
