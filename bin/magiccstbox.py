@@ -137,6 +137,7 @@ if __name__ == '__main__':
     ap.add_argument("-c", "--csv", help="Save csv file with specified name")
     ap.add_argument("-p", "--console", action='store_true', help="Print human-readable CST values to console")
     ap.add_argument("-g", "--gui", action='store_true', help="Plot CSTs in interactive GUI (experimental)")
+    ap.add_argument("-l", "--load", action='store_true', help="Load CSTs from pickle file instead of parsing log files")
     ap.add_argument("--silent", action='store_true', help="Don't print progress messages")
     ap.add_argument("--sort", default="oldfirst", choices=["none", "oldfirst", "newfirst"], help="Sort the CSTs by time in the specified direction prior to generating output. Default is 'oldfirst'.")
     ap.add_argument("log_filenames", nargs='+', help="File name(s) of log files to process.  Wildcards are OK.")
@@ -150,7 +151,14 @@ if __name__ == '__main__':
     show_progress = not args.silent
     
     # First, try to parse the files we were given.
-    cst_list = get_csts_from_log_files(filename_list, console_progress=show_progress)[0]
+    if args.load:
+        if show_progress:
+            _bareprint("Loading CSTs from {}...".format(filename_list[0]))
+        cst_list = load_csts_from_pickle(filename_list[0])
+        if show_progress:
+            print("Done.")
+    else:
+        cst_list = get_csts_from_log_files(filename_list, console_progress=show_progress)[0]
     
     if args.sort is not "none":
         if args.sort is "oldfirst":

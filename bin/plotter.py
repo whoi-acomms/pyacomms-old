@@ -111,15 +111,36 @@ class AppForm(QMainWindow):
         # clear the axes and redraw the plot anew
         #
         
-        # Pick the data based on the combo box value
+        plot_fields = []
+        # Create subplots for each checked item
+        for index in xrange(self.field_listbox.count()):
+            item = self.field_listbox.item(index)
+            ischecked = bool(item.checkState())
+            if ischecked:
+                plot_fields.append(item.text())
         
-        ydata = self.cst_dol[str(self.plot_combobox.currentText())]
+        if len(plot_fields) > 0:
+            nrows = len(plot_fields)
+            ncols = 1
+            
+            self.fig.clear()
+            for row in xrange(nrows):
+                ydata = self.cst_dol[plot_fields[row]]
+                axes = self.fig.add_subplot(nrows, ncols, row)
+                axes.plot(xdata, ydata, marker=".", linewidth=self.slider.value())
         
+        else:        
+            
+            # Pick the data based on the combo box value
+            self.axes = self.fig.add_subplot('111')
+            ydata = self.cst_dol[str(self.plot_combobox.currentText())]
+            
+            
+            self.axes.clear()        
+            self.axes.grid(self.grid_cb.isChecked())
+                    
+            self.axes.plot(xdata, ydata, marker=".", linewidth=self.slider.value())
         
-        self.axes.clear()        
-        self.axes.grid(self.grid_cb.isChecked())
-                
-        self.axes.plot(xdata, ydata, marker=".", linewidth=self.slider.value())
         self.fig.autofmt_xdate()
         
         self.canvas.draw()
@@ -131,7 +152,7 @@ class AppForm(QMainWindow):
         # 5x4 inches, 100 dots-per-inch
         #
         self.dpi = 100
-        self.fig = Figure((5.0, 4.0), dpi=self.dpi)
+        self.fig = Figure(dpi=self.dpi)
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self.main_frame)
         
@@ -140,7 +161,7 @@ class AppForm(QMainWindow):
         # configuration tool in the navigation toolbar wouldn't
         # work.
         #
-        self.axes = self.fig.add_subplot(111)
+        
         
         # Bind the 'pick' event for clicking on one of the bars
         #
@@ -178,6 +199,20 @@ class AppForm(QMainWindow):
         self.plot_combobox.addItems(CycleStats.fields)
         self.connect(self.plot_combobox, SIGNAL('currentIndexChanged(int)'), self.on_draw)
         
+        self.field_listbox = QListWidget()
+        self.field_listbox.setSelectionMode(QAbstractItemView.NoSelection)
+        self.field_listbox.addItems(CycleStats.fields)
+        for index in xrange(self.field_listbox.count()):
+            item = self.field_listbox.item(index)
+            item.setCheckState(Qt.CheckState(0))
+        self.field_listbox.setMinimumWidth(self.field_listbox.sizeHintForColumn(0))
+        self.connect(self.field_listbox, SIGNAL('itemClicked(QListWidgetItem *)'), self.on_draw)
+        
+        toparea = QSplitter()
+        toparea.addWidget(self.field_listbox)
+        toparea.addWidget(self.canvas)
+        
+        
         
         #
         # Layout with box sizers
@@ -189,13 +224,21 @@ class AppForm(QMainWindow):
             hbox.addWidget(w)
             hbox.setAlignment(w, Qt.AlignVCenter)
         
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.mpl_toolbar)
-        vbox.addWidget(self.canvas)
-        vbox.addLayout(hbox)
+        plotsection = QVBoxLayout()
+        plotsection.addWidget(self.mpl_toolbar)
+        plotsection.addWidget(toparea)
+        plotsection.addLayout(hbox)
+        plotsectionwidget = QWidget()
+        plotsectionwidget.setLayout(plotsection)
+        
+        vbox = QSplitter(Qt.Orientation.Vertical)
+        vbox.addWidget(plotsectionwidget)
         vbox.addWidget(self.table)
         
-        self.main_frame.setLayout(vbox)
+        bigbox = QVBoxLayout()
+        bigbox.addWidget(vbox)
+        
+        self.main_frame.setLayout(bigbox)
         self.setCentralWidget(self.main_frame)
     
     def create_status_bar(self):
