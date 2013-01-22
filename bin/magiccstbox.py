@@ -53,7 +53,13 @@ def get_csts_from_log_file(log_filename, console_progress=False, drop_packet_tim
             if dollar_pos >= 0:
                 try:
                     # look for a date in the first part of the string
-                    line_timestamp = dateutil.parser.parse(line[:dollar_pos], fuzzy=True)
+                    # We start removing (hopefully garbage) characters
+                    for remove_idx in range(dollar_pos):
+                        try:
+                            line_timestamp = dateutil.parser.parse(line[:(dollar_pos-remove_idx)], fuzzy=True)
+                            break
+                        except ValueError:
+                            continue
                     msg = Message(line[dollar_pos:])
                     cst = CycleStats.from_nmea_msg(msg, log_datetime=line_timestamp, drop_packet_timeout=drop_packet_timeout)
                     cst_list.append(cst)
