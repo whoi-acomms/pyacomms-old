@@ -2,15 +2,15 @@ import testcase
 from acomms import Micromodem
 from time import sleep
 from collections import namedtuple
-import plotter
+#import plotter
 
 class SimpleTestScript(object):
     
     def run(self):      
         modem_a = Micromodem(name="Modem A", logpath="c:/temp", consolelog='INFO')
         modem_b = Micromodem(name="Modem B", logpath="c:/temp", consolelog='INFO')
-        modem_a.connect('COM14', 115200)
-        modem_b.connect('COM15', 115200)
+        modem_a.connect('COM2', 19200)
+        modem_b.connect('COM7', 19200)
         
         sleep(3)
         

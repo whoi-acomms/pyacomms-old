@@ -12,13 +12,13 @@ class TestCase(object):
         self.name = name
         
 class OneToOneUm1DownlinkResults(object):
-    RunResult = namedtuple('Result', 'number passed cst')
+    RunResult = namedtuple('Result', 'number number_passed number_failed passed cst')
     
     run_results = []
     all_runs_passed = True
     
-    def append_run_result(self, number, passed, cst):
-        this_run_result = self.RunResult(number, passed, cst)
+    def append_run_result(self, number,number_passed, number_failed, passed, cst):
+        this_run_result = self.RunResult(number, number_passed, number_failed,passed, cst)
         self.run_results.append(this_run_result)
         self.all_runs_passed = self.all_runs_passed and passed
         
@@ -29,7 +29,15 @@ class OneToOneUm1DownlinkCase(TestCase):
     @property
     def runcount(self):
         return self._runcount
-    
+
+    @property
+    def passcount(self):
+        return self._passcount
+
+    @property
+    def failcount(self):
+        return self._failcount
+
     @property
     def description(self):
         return "{tx_modem_name} ({tx_modem_id}) transmits uM1 packet to " \
@@ -51,7 +59,9 @@ class OneToOneUm1DownlinkCase(TestCase):
         assert isinstance(rx_modem, Micromodem)    
         
         self._runcount = 0
-        
+        self._passcount = 0
+        self._failcount = 0
+
         self.results = OneToOneUm1DownlinkResults()
 
         self.timeout = timeout
@@ -85,7 +95,12 @@ class OneToOneUm1DownlinkCase(TestCase):
             passed = False
         
         # store this run result
-        this_result = self.results.append_run_result(self._runcount, passed, cst)
+        if passed == False:
+            self._failcount +=1
+        else:
+            self._passcount +=1
+
+        this_result = self.results.append_run_result(self._runcount, self._passcount, self._failcount, passed, cst)
         
         return this_result
         
