@@ -49,7 +49,7 @@ class Micromodem(Serial):
         self.connected = False
         self.listeners = [ ]
         self.stopListeningCalled = False
-        self.thread = Thread( target=self.listen)
+        self.thread = Thread( target=self._listen)
         self.thread.setDaemon(True)
         
         self.doSerial = True
@@ -137,10 +137,10 @@ class Micromodem(Serial):
             self.daemonlog.info("Starting daemon log,{0}".format(self.name))
 
         
-    def listen(self):
+    def _listen(self):
         while(True):
             if self.connected:
-                msg = self.rawReadline()
+                msg = self.raw_readline()
                 # Hack for Iridium dialing.
                 if self.iridium is not None:
                     if self.getCD() == False:
@@ -149,17 +149,16 @@ class Micromodem(Serial):
                         self.iridium.process_io(msg)
                     else:
                         # We are connected, so pass through to NMEA
-                        self.process_incoming_nmea(msg)
-                        self.process_outgoing_nmea()
+                        self._process_incoming_nmea(msg)
+                        self._process_outgoing_nmea()
                 else:
                     # Iridium is not active
-                    self.process_incoming_nmea(msg)
-                    self.process_outgoing_nmea()
+                    self._process_incoming_nmea(msg)
+                    self._process_outgoing_nmea()
             else: # not connected
                 sleep(0.5) # Wait half a second, try again.
-                
-                
-    def process_outgoing_nmea(self):
+
+    def _process_outgoing_nmea(self):
         # Now, transmit anything we have in the outgoing queue.
         try:
             txstring = self.serial_tx_queue.get(block=False)
@@ -173,7 +172,7 @@ class Micromodem(Serial):
         except:
             self.daemonlog.exception("NMEA Output Error")        
                 
-    def process_incoming_nmea(self, msg):
+    def _process_incoming_nmea(self, msg):
         if msg is not None:
             try:
                 #self.nmealog.info("< " + msg.rstrip('\r\n'))
@@ -207,7 +206,7 @@ class Micromodem(Serial):
             self.open()
             self.connected = True
             sleep(0.05)
-            self.getConfigParam("ALL")
+            self.get_config_param("ALL")
             sleep(0.05)
         except Exception, inst:
             raise inst
@@ -218,7 +217,7 @@ class Micromodem(Serial):
         self.connected = False
         self.close()
         
-    def CloseLoggers(self):
+    def close_loggers(self):
         for hdlr in self.daemonlog.handlers:
             hdlr.flush()
             hdlr.close()
@@ -264,13 +263,13 @@ class Micromodem(Serial):
 
 
         
-    def getConfigParam(self, param):
+    def get_config_param(self, param):
         msg = { 'type':"CCCFQ", 'params':[ param ] }
         self.write_nmea( msg )
         
 
 
-    def rawReadline(self):
+    def raw_readline(self):
         """Returns a raw message from the modem."""
         rl = Serial.readline(self)
 

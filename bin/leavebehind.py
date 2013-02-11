@@ -111,7 +111,7 @@ class BottomNode(object):
         # Now, close all open files.
         self.logger.info("Closing files and shutting down...")
         self.um.disconnect()
-        self.um.CloseLoggers()
+        self.um.close_loggers()
         self.close_log()
         sleep(1)
         
