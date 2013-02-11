@@ -10,33 +10,46 @@ class TestCase(object):
     
     def __init__(self, name=None):
         self.name = name
+
+    @property
+    def result_text(self):
+        return "No Result"
         
 class OneToOneUm1DownlinkResults(object):
-    RunResult = namedtuple('Result', 'number number_passed number_failed passed cst')
-    
-    run_results = []
-    all_runs_passed = True
-    
-    def append_run_result(self, number,number_passed, number_failed, passed, cst):
-        this_run_result = self.RunResult(number, number_passed, number_failed,passed, cst)
+    RunResult = namedtuple('Result', 'number passed cst')
+
+    def __init__(self):
+        self.run_results = []
+        self.all_runs_passed = True
+
+    def append_run_result(self, number, passed, cst):
+        this_run_result = self.RunResult(number, passed, cst)
         self.run_results.append(this_run_result)
         self.all_runs_passed = self.all_runs_passed and passed
-        
+
         return this_run_result
+
+    @property
+    def num_runs_passed(self):
+        return sum([int(run.passed) for run in self.run_results])
+
+    @property
+    def num_runs_failed(self):
+        return len(self.run_results) - self.num_runs_passed
     
 class OneToOneUm1DownlinkCase(TestCase):
     
     @property
-    def runcount(self):
+    def run_count(self):
         return self._runcount
 
     @property
-    def passcount(self):
-        return self._passcount
+    def pass_count(self):
+        return self.results.num_runs_passed
 
     @property
-    def failcount(self):
-        return self._failcount
+    def fail_count(self):
+        return self.results.num_runs_failed
 
     @property
     def description(self):
@@ -48,7 +61,7 @@ class OneToOneUm1DownlinkCase(TestCase):
                    rx_modem_name = self.rx_modem.name,
                    rx_modem_id = self.rx_modem.id,
                    rate_num = self.rate_num,
-                   num_frames = self.num_frames)
+                   num_frames = ("max" if self.num_frames is None else self.num_frames))
                    
     
     def __init__(self, tx_modem, rx_modem, timeout=30, rate_num=1, 
@@ -59,8 +72,6 @@ class OneToOneUm1DownlinkCase(TestCase):
         assert isinstance(rx_modem, Micromodem)    
         
         self._runcount = 0
-        self._passcount = 0
-        self._failcount = 0
 
         self.results = OneToOneUm1DownlinkResults()
 
@@ -95,20 +106,16 @@ class OneToOneUm1DownlinkCase(TestCase):
             passed = False
         
         # store this run result
-        if passed == False:
-            self._failcount +=1
-        else:
-            self._passcount +=1
-
-        this_result = self.results.append_run_result(self._runcount, self._passcount, self._failcount, passed, cst)
+        this_result = self.results.append_run_result(self._runcount, passed, cst)
         
         return this_result
         
         
-        
-        
-        
-        
+    @property
+    def result_text(self):
+        tfmsg = {True:'Pass', False:'Fail', None:'Error'}
+        return "{}: {} ({} runs, {} passed, {} failed)".format(self.name, tfmsg[self.results.all_runs_passed],
+                                                              self._runcount, self.pass_count, self.fail_count)
 
 
         

@@ -25,7 +25,7 @@ class SimpleTestScript(object):
             this_run_result = dl_rate1.run()
             print("{}: {}".format(this_run_result.number, tfmsg[this_run_result.passed]))
             
-        print("Completed {} runs, Overall {}".format(dl_rate1.runcount, tfmsg[dl_rate1.results.all_runs_passed]))
+        print("Completed {} runs, Overall {}".format(dl_rate1.run_count, tfmsg[dl_rate1.results.all_runs_passed]))
         
         self.plot_results(dl_rate1.results)
             

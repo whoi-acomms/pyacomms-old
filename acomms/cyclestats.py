@@ -195,7 +195,17 @@ class CycleStatsList(list):
             dol[field] = [cst[field] for cst in self]
         
         return dol
-    
+
+    # This automagically retrieves lists for each parameter when they are referenced as properties.
+    # Whether this is awesome or sucks is open to debate.
+    def __getattr__(self, item):
+        """Maps values to attributes.
+        Only called if there *isn't* an attribute with this name
+        """
+        if item in CycleStats.fields:
+            return [cst[item] for cst in self]
+        else:
+            raise AttributeError(item)
     
             
     
