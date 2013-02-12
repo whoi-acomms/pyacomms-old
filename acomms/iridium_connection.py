@@ -4,24 +4,62 @@ Created on Jul 13, 2012
 @author: Eric
 '''
 
-import serial
+from serial import Serial
+from threading import Thread
 from time import sleep
 
-class Iridium(object):
+class IridiumConnection(object):
     '''
     classdocs
     '''
 
 
-    def __init__(self,modem,number):
+    def __init__(self, modem, port, baudrate, number, timeout=0.1):
         '''
         Constructor
         '''
+        self._incoming_line_buffer = ""
+
+        self.connection_type = "direct_iridium"
+
+        self.modem = modem
+        self.port = port
+        self.baudrate = baudrate
+        self.timeout = timeout
+
+        self._serialport = Serial(port, baudrate, timeout=self.timeout)
+
+        self._thread = Thread(target=self._listen)
+        self._thread.setDaemon(True)
+        self._thread.start()
+
         self.state = 'DISCONNECTED'
         self.modem = modem
         self.number = str(number)
         self.counter = 0
 
+    @property
+    def is_connected(self):
+        return self._serialport.isOpen()
+
+    def close(self):
+        self._serialport.close()
+
+
+    def _listen(self):
+        while True:
+            if self._serialport.isOpen():
+                msg = self.raw_readline()
+                if not self.getCD():
+                    # Not connected via Iridium
+                    # Processing I/O with Iridium dialer.
+                    self.process_io(msg)
+                else:
+                    # We are connected, so pass through to NMEA
+                    self.modem._process_incoming_nmea(msg)
+                    self.modem._process_outgoing_nmea()
+            else:  # not connected
+                sleep(0.5) # Wait half a second, try again.
 
     def process_io(self, msg):
         # This is called by the primary serial processing loop.

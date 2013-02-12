@@ -47,7 +47,7 @@ class CommState(object):
         if self.modem.current_txpacket != None:
             self.modem.on_packettx_failed()
             
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         pass
     
     def got_caerr(self,hhmmss,module,err_num,message):
@@ -105,7 +105,7 @@ class Idle(CommState):
         
         self.modem.current_cycleinfo = cycleinfo
         
-        self.modem.changestate(WaitingForCacyc)
+        self.modem._changestate(WaitingForCacyc)
         
     def got_cacyc(self, cycleinfo):
         super(Idle, self).got_cacyc(cycleinfo)
@@ -114,9 +114,9 @@ class Idle(CommState):
         
         # check to see if this is an uplink request or incoming data
         if (cycleinfo.src == self.modem.id):
-            self.modem.changestate(WaitingForDrq)
+            self.modem._changestate(WaitingForDrq)
         else:
-            self.modem.changestate(WaitingForRxData)
+            self.modem._changestate(WaitingForRxData)
             
     def send_packet(self, packet):
         self.modem.daemonlog.info("Sending packet from Idle")
@@ -128,7 +128,7 @@ class Idle(CommState):
         # Send the cycle init
         self.modem.send_cycleinit(packet.cycleinfo)
         
-        self.modem.changestate(WaitingForCacyc)
+        self.modem._changestate(WaitingForCacyc)
     
     def __str__(self):
         return "Idle"
@@ -156,12 +156,12 @@ class WaitingForCacyc(CommState):
             if (cycleinfo.src == self.modem.id):
                 # Downlink.  Is it an FSK (rate 0) downlink (will it send a minipacket CI)?
                 if cycleinfo.rate_num == 0:
-                    self.modem.changestate(WaitingForCiTxf)
+                    self.modem._changestate(WaitingForCiTxf)
                 else:
-                    self.modem.changestate(WaitingForDrq)
+                    self.modem._changestate(WaitingForDrq)
             else:
                 # Uplink.  Wait for the cycle init to finish transmitting.
-                self.modem.changestate(WaitingForCiTxf)
+                self.modem._changestate(WaitingForCiTxf)
         else:
             # This CACYC doesn't match what we expect
             # TODO: Add log message here
@@ -172,9 +172,9 @@ class WaitingForCacyc(CommState):
             
             # Is this an uplink request for us?
             if cycleinfo.src == self.modem.id:
-                self.modem.changestate(WaitingForDrq)
+                self.modem._changestate(WaitingForDrq)
             else:
-                self.modem.changestate(WaitingForRxData)
+                self.modem._changestate(WaitingForRxData)
                 
         # if we got here, something is wrong
         #self.modem.daemonlog.warn("Impossible state in WaitingForCacyc.got_cacyc")
@@ -185,7 +185,7 @@ class WaitingForCacyc(CommState):
         # TODO: Log this error
         self.modem.on_packettx_failed()
         
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
     def __str__(self):
         return "Waiting For CACYC"
@@ -221,16 +221,16 @@ class WaitingForDrq(CommState):
                 if drqparams.frame_num < self.modem.current_txpacket.cycleinfo.num_frames:
                     # It wasn't, so get ready to send the next frame.
                     self.modem.current_tx_frame_num += 1
-                    self.modem.changestate(WaitingForDrq)
+                    self.modem._changestate(WaitingForDrq)
                 else:
                     # That was the last frame, so wait for the packet to transmit
-                    self.modem.changestate(WaitingForTxf)
+                    self.modem._changestate(WaitingForTxf)
                     
             else:
                 # The DRQ we just received does not match the packet we have queued for transmit.
                 # Therefore, we don't know what state we're in.  Say that we failed and go back to Idle.
                 self.modem.on_packettx_failed()
-                self.modem.changestate(Idle)
+                self.modem._changestate(Idle)
         else:
             # We don't have a current TX packet, so this is an uplink request
             
@@ -240,9 +240,9 @@ class WaitingForDrq(CommState):
             
             # Do we expect to send more frames?
             if drqparams.frame_num < self.modem.current_cycleinfo.num_frames:
-                self.modem.changestate(WaitingForDrq)
+                self.modem._changestate(WaitingForDrq)
             else:
-                self.modem.changestate(WaitingForTxf)
+                self.modem._changestate(WaitingForTxf)
     
     def got_datatimeout(self, frame_num):
         CommState.got_datatimeout(self, frame_num)
@@ -257,13 +257,13 @@ class WaitingForDrq(CommState):
         # Now, see if the modem will still transmit for any reason
         if self.modem.asd == True:
             # The modem will generate a test frame and still transmit
-            self.modem.changestate(WaitingForTxf)
+            self.modem._changestate(WaitingForTxf)
         else:
             # See if we already sent a frame, in which case the modem will still transmit.
             if frame_num > 1:
-                self.modem.changestate(WaitingForTxf)
+                self.modem._changestate(WaitingForTxf)
             else:
-                self.modem.changestate(Idle)
+                self.modem._changestate(Idle)
     
     def timeout(self):
         CommState.timeout(self)
@@ -274,7 +274,7 @@ class WaitingForDrq(CommState):
             self.modem.on_packettx_failed()
         
         # We don't really know what state we're in.
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
     def got_catxf(self):
         CommState.got_catxf(self)
@@ -284,7 +284,7 @@ class WaitingForDrq(CommState):
         if self.modem.current_txpacket != None:
             self.modem.on_packettx_failed()
             
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
     def __str__(self):
         return "Waiting for CADRQ"
@@ -311,7 +311,7 @@ class WaitingForTxf(CommState):
             self.modem.on_packettx_success()
         
         # Now, go back to Idle.
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
         
     def __str__(self):
@@ -334,9 +334,9 @@ class WaitingForCiTxf(CommState):
         
         # See if we are in the middle of an FSK downlink
         if self.modem.current_txpacket != None:
-            self.modem.changestate(WaitingForDrq)
+            self.modem._changestate(WaitingForDrq)
         else:
-            self.modem.changestate(WaitingForPacket)
+            self.modem._changestate(WaitingForPacket)
     
     def timeout(self):
         CommState.timeout(self)
@@ -350,7 +350,7 @@ class WaitingForCiTxf(CommState):
         else:
             self.modem.on_uplink_failed()
         
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
     def __str__(self):
         return "Waiting for CI CATXF"
@@ -373,28 +373,28 @@ class WaitingForPacket(CommState):
         # Make sure this is the packet we expect.
         if cycleinfo == self.modem.current_cycleinfo:
             # This is the packet for which we were waiting, so wait for the CARXDs.
-            self.modem.changestate(WaitingForRxData)
+            self.modem._changestate(WaitingForRxData)
         else:
             # This was not the CACYC we expected.
             # Replace the current_cycleinfo to match this incoming message and raise an error
             self.modem.on_uplink_failed()
             self.modem.current_cycleinfo = cycleinfo
             
-            self.modem.changestate(WaitingForRxData)
+            self.modem._changestate(WaitingForRxData)
         
     def got_packettimeout(self):
         CommState.got_packettimeout(self)
         
         #TODO: Raise error here
         
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
     def timeout(self):
         CommState.timeout(self)
         
         #TODO: Raise error here
         
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
     def __str__(self):
         return "Waiting for packet"
@@ -428,17 +428,17 @@ class WaitingForRxData(CommState):
                 self.modem.on_packetrx_success()
                 
                 # Go back to Idle
-                self.modem.changestate(Idle)
+                self.modem._changestate(Idle)
             
                 #TODO: check for ACKS
             else:
                 # We are waiting for another frame
-                self.modem.changestate(WaitingForRxData)
+                self.modem._changestate(WaitingForRxData)
         else:
             # This is not the frame we were expecting
             # We can't make a good packet, so signal an error
             self.modem.on_packetrx_failed()
-            self.modem.changestate(Idle)
+            self.modem._changestate(Idle)
         
     def got_badcrc(self):
         CommState.got_badcrc(self)
@@ -447,7 +447,7 @@ class WaitingForRxData(CommState):
         if self.modem.current_rxpacket != None:
             self.modem.on_packetrx_failed()
         
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
         
     def timeout(self):
         CommState.timeout(self)
@@ -456,7 +456,7 @@ class WaitingForRxData(CommState):
         if self.modem.current_rxpacket != None:
             self.modem.on_packetrx_failed()
         
-        self.modem.changestate(Idle)
+        self.modem._changestate(Idle)
     
     def __str__(self):
         return "Waiting for RX Data"

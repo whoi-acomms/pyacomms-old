@@ -9,11 +9,12 @@ from Queue import Empty, Full
 from multiprocessing import Queue
 import logging
 import struct
-from iridium import Iridium
 
 import commstate
 from messageparser import MessageParser
 from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame
+
+from serial_connection import SerialConnection
 
 # Convert a string to a byte listing
 toBytes   = lambda inpStr: map(ord,inpStr)
@@ -24,11 +25,13 @@ nmeaChecksum = lambda inpStr: toHexStr([reduce(lambda x,y: x^y, toBytes(inpStr))
 # Convert boolean to C / CCL / Modem representation (0,1)
 bool2int = lambda inbool: inbool and 1 or 0
 
+
 class ChecksumException(Exception):
     pass
 
+
 class Micromodem(Serial):
-    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', time_nmea_log=True, iridiumnumber=None, logformat='Default', GetUplinkDataFxn=None):
+    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', logformat='Default'):
         Serial.__init__(self)
         
         name = str(name)
@@ -40,19 +43,10 @@ class Micromodem(Serial):
             self.logpath += '/'
 
         self.logformat = logformat
-        if iridiumnumber is not None:
-            self.iridium = Iridium(self, iridiumnumber)
-        else:
-            self.iridium = None
-        
-        self.thread = None
-        self.connected = False
-        self.listeners = [ ]
-        self.stopListeningCalled = False
-        self.thread = Thread( target=self._listen)
-        self.thread.setDaemon(True)
-        
-        self.doSerial = True
+
+        self.connection = None
+
+        self.nmea_listeners = [ ]
 
         self.parser = MessageParser(self)
         self.state = commstate.Idle(comms=self)
@@ -74,7 +68,6 @@ class Micromodem(Serial):
         self.current_txpacket = None
         self.current_rxpacket = None
         self.set_host_clock_flag = False
-        self.temp_incoming_nmea = ""
         
         self.serial_tx_queue = Queue()
         
@@ -83,11 +76,28 @@ class Micromodem(Serial):
         self.start_nmea_logger(consolelog)
         self.start_daemon_logger(consolelog)
         
-        if hasattr(GetUplinkDataFxn,'__call__'):
-            self.GetUplinkDataFxn = GetUplinkDataFxn
-        else:
-            self.GetUplinkDataFxn = None
-        
+        self.get_uplink_data_function = None
+
+    def connect(self, serialport=None, baudrate=19200):
+        ''' Convenience function to establish a connection using a serial port.  Included for backward-compatibility.
+        '''
+        self.connect_serial(serialport, baudrate)
+
+    def connect_serial(self, port, baudrate=19200):
+        self.connection = SerialConnection(self, port, baudrate)
+        self.query_modem_info()
+
+    def disconnect(self):
+        if self.connection is not None:
+            self.connection.disconnect()
+            self.connection = None
+
+    def query_modem_info(self):
+        sleep(0.05)
+        self.get_config_param("ALL")
+        sleep(0.05)
+        # All of the salient properties on this object are populated automatically by the NMEA config handler.
+
     def start_nmea_logger(self,consolelog):
         if self.nmealog == None:
             now = datetime.utcnow()
@@ -136,27 +146,6 @@ class Micromodem(Serial):
             self.daemonlog.addHandler(fh)
             self.daemonlog.info("Starting daemon log,{0}".format(self.name))
 
-        
-    def _listen(self):
-        while(True):
-            if self.connected:
-                msg = self.raw_readline()
-                # Hack for Iridium dialing.
-                if self.iridium is not None:
-                    if self.getCD() == False:
-                        # Not connected via Iridium
-                        # Processing I/O with Iridium dialer.
-                        self.iridium.process_io(msg)
-                    else:
-                        # We are connected, so pass through to NMEA
-                        self._process_incoming_nmea(msg)
-                        self._process_outgoing_nmea()
-                else:
-                    # Iridium is not active
-                    self._process_incoming_nmea(msg)
-                    self._process_outgoing_nmea()
-            else: # not connected
-                sleep(0.5) # Wait half a second, try again.
 
     def _process_outgoing_nmea(self):
         # Now, transmit anything we have in the outgoing queue.
@@ -182,7 +171,7 @@ class Micromodem(Serial):
                 
                 self.parser.parse(msg)
                 
-                for func in self.listeners: func(msg) # Pass on the message.
+                for func in self.nmea_listeners: func(msg)  # Pass the message to any custom listeners.
                 
                 # Append this message to all listening queues
                 for q in self.incoming_msg_queues:
@@ -195,28 +184,7 @@ class Micromodem(Serial):
             except:
                 self.daemonlog.warn("NMEA Input Error")
 
-    def connect(self, port, baud, timeout=0.1):
-        self.doSerial = True
-        self.port = port
-        self.baudrate = baud
-        self.timeout = timeout
-        try:
-            if not self.thread.isAlive():
-                self.thread.start()
-            self.open()
-            self.connected = True
-            sleep(0.05)
-            self.get_config_param("ALL")
-            sleep(0.05)
-        except Exception, inst:
-            raise inst
-        sleep(0.5) # Let config parameters return
 
-
-    def disconnect(self):
-        self.connected = False
-        self.close()
-        
     def close_loggers(self):
         for hdlr in self.daemonlog.handlers:
             hdlr.flush()
@@ -229,14 +197,13 @@ class Micromodem(Serial):
             self.nmealog.removeHandler(hdlr)
         
         
-    def changestate(self, newstate):
+    def _changestate(self, newstate):
         self.state = newstate(comms=self)
         self.daemonlog.debug("Changed state to " + str(self.state))
         self.state.entering()
 
     def write_nmea(self, msg):
-        """Call with the message to send, without leading $ or trailing checksums,
-        linefeeds, and carriage returns.  Correct checksum will be computed."""
+        """Call with the message to send, as an NMEA message.  Correct checksum will be computed."""
         
         message = ",".join( [str(p) for p in [ msg['type'] ] + msg['params']] )
         chk = nmeaChecksum( message )
@@ -406,8 +373,8 @@ class Micromodem(Serial):
         
 
     def send_uplink_frame(self,drqparams):
-        if self.GetUplinkDataFxn is not None:
-            data = self.GetUplinkDataFxn(drqparams.num_bytes,self.id)
+        if self.get_uplink_data_function is not None:
+            data = self.get_uplink_data_function(drqparams.num_bytes,self.id)
         else:
             data = bytearray(struct.pack('!BBBBi', 0, 0, 1, 0, int(time())))
             
