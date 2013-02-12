@@ -30,10 +30,9 @@ class ChecksumException(Exception):
     pass
 
 
-class Micromodem(Serial):
+class Micromodem(object):
     def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', logformat='Default'):
-        Serial.__init__(self)
-        
+
         name = str(name)
         # Strip non-alphanumeric characters from name
         self.name = ''.join([ch for ch in name if ch.isalnum()])
