@@ -31,7 +31,7 @@ class SerialConnection(object):
     def _listen(self):
         while True:
             if self._serialport.isOpen():
-                msg = self.raw_readline()
+                msg = self.readline()
                 # We are connected, so pass through to NMEA
                 self.modem._process_incoming_nmea(msg)
                 self.modem._process_outgoing_nmea()
@@ -53,3 +53,7 @@ class SerialConnection(object):
             if self._incoming_line_buffer != "":
                 rl = self._incoming_line_buffer + rl
             self._incoming_line_buffer = ""
+            return rl
+
+    def write(self, data):
+        self._serialport.write(data)

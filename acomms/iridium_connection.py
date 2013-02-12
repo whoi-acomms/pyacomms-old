@@ -5,10 +5,11 @@ Created on Jul 13, 2012
 '''
 
 from serial import Serial
+from serial_connection import SerialConnection
 from threading import Thread
 from time import sleep
 
-class IridiumConnection(object):
+class IridiumConnection(SerialConnection):
     '''
     classdocs
     '''
@@ -37,13 +38,6 @@ class IridiumConnection(object):
         self.modem = modem
         self.number = str(number)
         self.counter = 0
-
-    @property
-    def is_connected(self):
-        return self._serialport.isOpen()
-
-    def close(self):
-        self._serialport.close()
 
 
     def _listen(self):
@@ -103,4 +97,3 @@ class IridiumConnection(object):
         self.modem.setDTR(True)
         self.modem.write("ATD{0}\r\n".format(self.number))
         self.state = "DIALING"
-

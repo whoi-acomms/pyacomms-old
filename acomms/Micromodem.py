@@ -149,10 +149,8 @@ class Micromodem(object):
     def _process_outgoing_nmea(self):
         # Now, transmit anything we have in the outgoing queue.
         try:
-            txstring = self.serial_tx_queue.get(block=False)
-            self.daemonlog.debug("WRITING TO SERIAL: %s" % (txstring))
-            self.write(txstring)
-            #self.nmealog.info("> " + txstring.rstrip('\r\n'))
+            txstring = self.serial_tx_queue.get_nowait()
+            self.connection.write(txstring)
             self.nmealog.info(txstring.rstrip('\r\n'))
         #If the queue is empty, then pass, otherwise log error
         except Empty:
