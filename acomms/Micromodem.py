@@ -1,19 +1,20 @@
 #!/usr/bin/env python
-import cmd,sys,os
+import os
 from time import sleep, time
 from datetime import datetime
 import re
-from serial import Serial
 from Queue import Empty, Full
 from multiprocessing import Queue
 import logging
 import struct
 
+from serial import Serial
+
 import commstate
 from messageparser import MessageParser
 from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame
+from acomms.modem_connections import SerialConnection
 
-from serial_connection import SerialConnection
 
 # Convert a string to a byte listing
 toBytes   = lambda inpStr: map(ord,inpStr)

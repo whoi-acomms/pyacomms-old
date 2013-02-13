@@ -4,10 +4,13 @@ Created on Jul 13, 2012
 @author: Eric
 '''
 
-from serial import Serial
-from serial_connection import SerialConnection
 from threading import Thread
 from time import sleep
+
+from serial import Serial
+
+from acomms.modem_connections.serial_connection import SerialConnection
+
 
 class IridiumConnection(SerialConnection):
     '''
