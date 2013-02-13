@@ -4,7 +4,6 @@ from time import sleep, time
 from datetime import datetime
 import re
 from serial import Serial
-from threading import Thread
 from Queue import Empty, Full
 from multiprocessing import Queue
 import logging
@@ -27,6 +26,9 @@ bool2int = lambda inbool: inbool and 1 or 0
 
 
 class ChecksumException(Exception):
+    pass
+
+class UnavailableInApiLevel(Exception):
     pass
 
 
@@ -467,7 +469,36 @@ class Micromodem(object):
         
         self.detach_incoming_msg_queue(incoming_msg_queue)
             
-        return matching_msg    
+        return matching_msg
+
+    def wait_for_nmea_type(self, type_string, timeout=None):
+        incoming_msg_queue = Queue()
+        self.attach_incoming_msg_queue(incoming_msg_queue)
+
+        matching_msg = None
+
+        remaining_time = timeout
+        if remaining_time is not None:
+            # If this program is ported to Python 3, this should be changed to use time.steady().
+            end_time = time() + timeout
+
+        while (remaining_time is None) or (remaining_time > 0):
+            try:
+                new_msg = incoming_msg_queue.get(timeout=remaining_time)
+                if new_msg['type'] is type_string:
+                    matching_msg = new_msg
+                    break
+                else:
+                    if remaining_time is not None:
+                        remaining_time = end_time - time()
+                    continue
+            except Empty:
+                break
+
+        self.detach_incoming_msg_queue(incoming_msg_queue)
+
+        return matching_msg
+
 
 class Message(dict):
     def __init__(self, raw):
