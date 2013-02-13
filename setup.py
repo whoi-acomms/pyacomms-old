@@ -9,7 +9,7 @@ setup(
     name='acomms',
     version='1.0',
     author='Eric Gallimore, Andrew Beal',
-    author_email='abeal@whoi.edu',
+    author_email='pyacomms@whoi.edu',
     packages=['acomms'],
 	package_dir={'acomms':'acomms'},
     url='http://acomms.whoi.edu/',
