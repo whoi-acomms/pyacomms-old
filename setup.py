@@ -18,7 +18,7 @@ setup(
     version='0.5b3',
     author='Eric Gallimore, Andrew Beal',
     author_email='pyacomms@whoi.edu',
-    packages=['acomms', 'acomms.modem_connections', 'bin', 'examples'],
+    packages=['acomms', 'acomms.modem_connections'],
     url='http://acomms.whoi.edu/',
     license='LGPLv3+',
     description='WHOI Micromodem Interface Library and Tools',
@@ -26,6 +26,7 @@ setup(
     install_requires=[
         "bitstring >= 3.0.0",
         "pyserial >= 2.6",
+        "ez_setup >= 0.6",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
