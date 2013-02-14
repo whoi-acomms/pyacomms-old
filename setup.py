@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from distutils.core import setup
+from setuptools import setup
 from ez_setup import use_setuptools
     
 use_setuptools()
@@ -15,7 +15,7 @@ def read(fname):
 
 setup(
     name='acomms',
-    version='0.5b1',
+    version='0.5b2',
     author='Eric Gallimore, Andrew Beal',
     author_email='pyacomms@whoi.edu',
     packages=['acomms', 'bin', 'examples'],
