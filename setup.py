@@ -19,7 +19,7 @@ setup(
     author='Eric Gallimore, Andrew Beal',
     author_email='pyacomms@whoi.edu',
     packages=['acomms', 'acomms.modem_connections', 'bin', 'examples'],
-    url='http://packages.python.org/acomms/',
+    url='http://acomms.whoi.edu/',
     license='LGPLv3+',
     description='WHOI Micromodem Interface Library and Tools',
     long_description=read('README.txt'),
