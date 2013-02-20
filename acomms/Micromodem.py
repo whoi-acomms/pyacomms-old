@@ -410,6 +410,20 @@ class Micromodem(object):
         self.write_nmea(msg)
         
     def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False):
+        ''' Start hibernating this modem.  This function will attempt to adapt to the limited capabilities of older
+            (uM1) hardware.
+        :param wake_at: Absolute time at which to wake.  May be a datetime object, Unix timestamp, or ISO 8601 datetime
+            string.  If this is not None, wake_in may *not* be set.
+        :param wake_in: Relative time to hibernate before waking.  May be a timedelta object, number of seconds to
+            hibernate, or an ISO 8601 duration string.  If this is not None, wake_at may *not* be set.
+        :param hibernate_at: Absolute time at which to start hibernate.  May be a datetime object, Unix timestamp, or
+            ISO 8601 datetime string.  If this is not None, hibernate_in may *not* be set.
+        :param hibernate_in: Relative time to wait before starting hibernate.  May be a timedelta object, number of
+            seconds to wait, or an ISO 8601 duration string.  If this is not None, hibernate_at may *not* be set.
+        :param disable_schedule: (Modem API level >= 10) If this is True and other parameters are all None, this will
+            set the wake mode to 0, which causes the modem to ignore any defined wake schedule in its configuration and
+            hibernate until an external wake signal is asserted.
+        '''
         # Make sure that we aren't overconstrained by parameters
         if wake_at is not None and wake_in is not None:
             raise(ValueError("Can't specify both an wake time (wake_at) and wake interval (wake_in)"))
