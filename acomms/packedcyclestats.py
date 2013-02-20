@@ -1,5 +1,7 @@
 import bitstring
 import calendar
+import datetime
+from netaddr.strategy.eui48 import packed_to_int
 from acomms import CycleStats
 
 def clampfixed(n, minn, maxn, decimalplaces):
@@ -30,9 +32,12 @@ def unclampfixed(clamped, minn, decimalplaces):
     
     return clamped
 
-class PackedCycleStats(CycleStats)
+class PackedCycleStats(dict):
 
-    packfmtstr = '''uint:24=toa,
+    packed_fields = ('mode', 'toa', 'mfd_pow', 'mfd_radio', 'rate_num', 'psk_error', 'bad_frames_num', 'snr_in',
+                     'snr_out', 'snr_sym', 'mse', 'dop', 'noise')
+
+    packfmtstr = '''uint:32=toa,
                     uint:10=mfd_pow,
                     uint:14=mfd_ratio,
                     uint:3=rate_num,
@@ -44,29 +49,20 @@ class PackedCycleStats(CycleStats)
                     uint:9=mse,
                     uint:6=dop,
                     uint:8=noise,
-                    bool=pcm_on
+                    uint:1=mode
                     '''
-    ts_epoch = datetime.datetime(2012, 10, 1)
     
-    packed_size = 13
-    
-    def get_packed_timestamp(self):
-        return (calendar.timegm(self.values['toa'].utctimetuple()) - 
-                calendar.timegm(CycleStats.ts_epoch.utctimetuple()))
-        
-    packed_timestamp = property(get_packed_timestamp)
-        
-    def to_packed(self):
+    packed_size = 14
+
+    def to_bitstring(self):
         # Make a neat, binary representation.
+
+        values = self
+
         # First, turn the values into range-limited fixed point values.
-        
-        
-        values = self.values
-        
-        clampvals = dict.fromkeys(CycleStats.fields)
-        
-        clampvals['toa'] = self.get_packed_timestamp()
-        
+        clampvals = dict.fromkeys(PackedCycleStats.packed_fields)
+
+        clampvals['toa'] = int(calendar.timegm(self['toa'].utctimetuple()))
         clampvals['mfd_pow'] = clampfixed(values['mfd_pow'], -30, 40, 0)
         clampvals['mfd_ratio'] = clampfixed(values['mfd_ratio'], 0, 16383, 0)
         clampvals['rate_num'] = clampfixed(values['rate_num'], -1, 6, 0)
@@ -78,23 +74,32 @@ class PackedCycleStats(CycleStats)
         clampvals['mse'] = clampfixed(values['mse'], -25, 5, 1)
         clampvals['dop'] = clampfixed(values['dop'], -3, 3, 1)
         clampvals['noise'] = clampfixed(values['noise'], 0, 255, 0)
-        clampvals['pcm_on'] = values['pcm_on']
+        clampvals['mode'] = clampfixed(values['mode'], 0, 1, 0)
         
         # Now, pack it into a bitstring.
-        bs = bitstring.pack(CycleStats.packfmtstr, **clampvals)
-        
-        
+        bs = bitstring.pack(self.packfmtstr, **clampvals)
         return bs
+
+    def to_bytes(self):
+        return self.to_bitstring().tobytes()
+
+    @classmethod
+    def from_cyclestats(cls, cyclestats):
+        values = dict.fromkeys(PackedCycleStats.packed_fields)
+        for key in values:
+            values[key] = cyclestats[key]
+
+        self = PackedCycleStats(values)
+        return self
         
     @classmethod    
     def from_packed(cls, databytes):
         bs = bitstring.BitStream(databytes)
-        packedlist = bs.unpack(CycleStats.packfmtstr)
+        packedlist = bs.unpack(PackedCycleStats.packfmtstr)
         
-        values = dict.fromkeys(CycleStats.fields)
+        values = dict.fromkeys(PackedCycleStats.packed_fields)
         
-        values['toa'] = datetime.datetime.utcfromtimestamp(
-                                packedlist[0] + calendar.timegm(CycleStats.ts_epoch.utctimetuple()))
+        values['toa'] = datetime.datetime.utcfromtimestamp(packedlist[0])
         values['mfd_pow'] = unclampfixed(packedlist[1], -30, 0)
         values['mfd_ratio'] = unclampfixed(packedlist[2], 0, 0)
         values['rate_num'] = unclampfixed(packedlist[3], -1, 0)
@@ -106,7 +111,7 @@ class PackedCycleStats(CycleStats)
         values['mse'] = unclampfixed(packedlist[9], -25, 1)
         values['dop'] = unclampfixed(packedlist[10], -3, 1)
         values['noise'] = unclampfixed(packedlist[11], 0, 0)
-        values['pcm_on'] = bool(packedlist[12])
+        values['mode'] = unclampfixed(packedlist[12], 0, 0)
         
         self = PackedCycleStats(values)
         return self    

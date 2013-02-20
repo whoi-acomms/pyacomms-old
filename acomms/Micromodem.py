@@ -2,6 +2,7 @@
 import os
 from time import sleep, time
 from datetime import datetime
+import timeutil
 import re
 from Queue import Empty, Full
 from multiprocessing import Queue
@@ -29,7 +30,7 @@ bool2int = lambda inbool: inbool and 1 or 0
 class ChecksumException(Exception):
     pass
 
-class UnavailableInApiLevel(Exception):
+class UnavailableInApiLevelError(Exception):
     pass
 
 
@@ -58,7 +59,9 @@ class Micromodem(object):
         
         self.incoming_cst_queues = []
         self.incoming_msg_queues = []
-        
+
+        self._api_level = 1
+
         self.id = -1
         self.asd = False
         self.pcm_on = False
@@ -406,10 +409,96 @@ class Micromodem(object):
         msg = {'type':'CCCFG', 'params':[str(name), str(value)]}
         self.write_nmea(msg)
         
-    def start_hibernate(self, num_minutes, delay_secs=0):
-        msg = {'type':'CCMSC', 'params':[self.id, self.id, num_minutes, delay_secs]}
-        self.write_nmea(msg)
-    
+    def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False):
+        # Make sure that we aren't overconstrained by parameters
+        if wake_at is not None and wake_in is not None:
+            raise(ValueError("Can't specify both an wake time (wake_at) and wake interval (wake_in)"))
+        if hibernate_at is not None and hibernate_in is not None:
+            raise(ValueError("Can't specify both a hibernate time (hibernate_at) and hibernate interval (hibernate_in)"))
+
+        # Convert the parameters into more useful versions.  This will attempt to parse ISO date/duration strings.
+        if wake_at is not None:
+            wake_at = timeutil.convert_to_datetime(wake_at)
+        if wake_in is not None:
+            wake_in = timeutil.convert_to_timedelta(wake_in)
+        if hibernate_at is not None:
+            hibernate_at = timeutil.convert_to_datetime(hibernate_at)
+        if hibernate_in is not None:
+            hibernate_in = timeutil.convert_to_timedelta(hibernate_in)
+
+        # Now, we need to generate a message, which varies depending on the API Level (uM1 vs uM2, mostly.)
+        if self._api_level < 10:
+            # This is a uM1, so we need to use CCMSC, with all its limitations
+            # First, are we ever going to wake?
+            if wake_at is None and wake_in is None:
+                sleep_arg = -1
+            else:
+                # We need to get a duration in minutes to hibernate.
+                if wake_at is not None:
+                    sleep_delta = wake_at - datetime.utcnow()
+                else:
+                    sleep_delta = wake_in
+
+                # We can only hibernate for multiples of 6 minutes.  Yeah...
+                # First, round up to the nearest minute.
+                sleep_arg = (sleep_delta.total_seconds() + 60) // 60
+                # Now round up to the nearest 6 minute interval (this takes advantage of the floor in integer division)
+                sleep_arg = ((sleep_arg + 6) // 6) * 6
+
+            if self._api_level < 6:
+                # This API level is defined to be firmware that doesn't include delayed hibernate
+                if (hibernate_at is not None) or (hibernate_in is not None):
+                    # Not all uM1 firmware supports delayed hibernate.  The API level must be manually set to use this feature.
+                    raise(UnavailableInApiLevelError("This API level (and probably modem) doesn't support delayed hibernate"))
+
+                msg = {'type':'CCMSC', 'params':[self.id, self.id, sleep_arg]}
+                self.write_nmea(msg)
+                return
+
+            else:  # API level 6-9
+                # We need to get a duration in seconds to delay hibernate.
+                if hibernate_at is not None:
+                    delay_delta = hibernate_at - datetime.utcnow()
+                    hibernate_delay_secs = delay_delta.total_seconds()
+                elif hibernate_in is not None:
+                    hibernate_delay_secs = hibernate_in.total_seconds()
+                else:
+                    hibernate_delay_secs = 0
+
+                msg = {'type':'CCMSC', 'params':[self.id, self.id, sleep_arg, hibernate_delay_secs]}
+                self.write_nmea(msg)
+                return
+
+        else:  # API level 10 and higher (uM2)
+            # Make a CCHIB command.
+            # Figure out the modes
+            if hibernate_in is not None:
+                hibernate_mode = 2
+                hibernate_time = int(hibernate_in.total_seconds())
+            elif hibernate_at is not None:
+                hibernate_mode = 1
+                hibernate_time = timeutil.to_utc_iso8601(hibernate_at, strip_fractional_seconds=True)
+            else:
+                hibernate_mode = 0
+                hibernate_time = 0
+
+            if wake_in is not None:
+                wake_mode = 3
+                wake_time = int(wake_in.total_seconds())
+            elif wake_at is not None:
+                wake_mode = 2
+                wake_time = timeutil.to_utc_iso8601(wake_at, strip_fractional_seconds=True)
+            elif not disable_schedule:
+                wake_mode = 1
+                wake_time = 0
+            else:
+                wake_mode = 0
+                wake_time = 0
+
+            msg = {'type':'CCHIB', 'params':[hibernate_mode, hibernate_time, wake_mode, wake_time]}
+            self.write_nmea(msg)
+            return
+
         
     def set_host_clock_from_modem(self):
         self.set_host_clock_flag = True        
