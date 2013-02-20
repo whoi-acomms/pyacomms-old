@@ -15,10 +15,10 @@ def read(fname):
 
 setup(
     name='acomms',
-    version='0.5.1b2',
+    version='0.5.1b5',
     author='Eric Gallimore, Andrew Beal',
     author_email='pyacomms@whoi.edu',
-    packages=['acomms', 'acomms.modem_connections', 'bin', 'examples'],
+    packages=['acomms', 'acomms.modem_connections', 'bin',],
     url='http://acomms.whoi.edu/',
     license='LGPLv3+',
     description='WHOI Micromodem Interface Library and Tools',
@@ -27,6 +27,7 @@ setup(
         "bitstring >= 3.0.0",
         "pyserial >= 2.6",
         "isodate >= 0.4.9",
+        "python-dateutil >= 2.1",
         "ez_setup >= 0.6",
     ],
     classifiers=[
