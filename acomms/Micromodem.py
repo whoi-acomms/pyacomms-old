@@ -83,6 +83,13 @@ class Micromodem(object):
         
         self.get_uplink_data_function = None
 
+    @property
+    def api_level(self):
+        return self._api_level
+
+    def force_api_level(self, api_level):
+        self._api_level = api_level
+
     def connect(self, serialport=None, baudrate=19200):
         ''' Convenience function to establish a connection using a serial port.  Included for backward-compatibility.
         '''
