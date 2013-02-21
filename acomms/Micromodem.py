@@ -148,7 +148,7 @@ class Micromodem(object):
             if not os.path.isdir(self.logpath):
                 os.makedirs(self.logpath)                             
             fh = logging.FileHandler(self.logpath + logfilename)
-            fh.setLevel(logging.DEBUG)
+            fh.setLevel(logging.INFO)
             fh.setFormatter(logformat)
             if consolelog != 'DISABLED':            
                 ch = logging.StreamHandler()

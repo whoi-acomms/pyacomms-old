@@ -15,7 +15,7 @@ def read(fname):
 
 setup(
     name='acomms',
-    version='0.5.1b5',
+    version='0.5.2b1',
     author='Eric Gallimore, Andrew Beal',
     author_email='pyacomms@whoi.edu',
     packages=['acomms', 'acomms.modem_connections', 'bin',],

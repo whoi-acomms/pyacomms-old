@@ -30,7 +30,7 @@ def convert_to_timedelta(object_to_convert):
     else:
         # If it is an number (or a number as string or something), assume it is in seconds.
         try:
-            as_timedelta = timedelta(seconds=Decimal(object_to_convert))
+            as_timedelta = timedelta(seconds=int(object_to_convert))
         except ValueError:
             # Try parsing it as an ISO8601 string
             try:
