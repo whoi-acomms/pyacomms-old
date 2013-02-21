@@ -82,9 +82,12 @@ class MessageParser:
         elif msg["params"][0] == "PACKET_TIMEOUT":
             self.modem.state.got_packettimeout()
         else:
-            msg_type = msg["params"][0]
-            number = int(msg["params"][1])
-            self.modem.state.got_CAMSG(msg_type,number)
+            try:
+                msg_type = msg["params"][0]
+                number = int(msg["params"][1])
+                self.modem.state.got_CAMSG(msg_type,number)
+            except ValueError:
+                pass
         #TODO: Add PSK errors here
             
     def CAERR(self, msg):
