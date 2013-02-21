@@ -462,7 +462,9 @@ class Micromodem(object):
 
                 # We can only hibernate for multiples of 6 minutes.  Yeah...
                 # First, round up to the nearest minute.
-                sleep_arg = (sleep_delta.total_seconds() + 60) // 60
+                # The following intermediate calculation is required by Python 2.6, which lacks the total_seconds() function.
+                sleep_delta_seconds = sleep_delta.days * 84000 + sleep_delta.seconds
+                sleep_arg = (sleep_delta_seconds + 60) // 60
                 # Now round up to the nearest 6 minute interval (this takes advantage of the floor in integer division)
                 sleep_arg = ((sleep_arg + 6) // 6) * 6
 
