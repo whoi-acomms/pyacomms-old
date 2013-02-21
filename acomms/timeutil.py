@@ -1,9 +1,7 @@
 __author__ = 'Eric'
 
-import dateutil
 from datetime import datetime, timedelta
 import isodate
-from decimal import Decimal
 
 
 def convert_to_datetime(object_to_convert):
@@ -13,7 +11,7 @@ def convert_to_datetime(object_to_convert):
     else:
         # If it is an decimal (or sting convertable to a decimal), assume it is a unix time.
         try:
-            as_datetime = datetime.utcfromtimestamp(Decimal(object_to_convert))
+            as_datetime = datetime.utcfromtimestamp(int(object_to_convert))
         except ValueError:
             # If it can't be an int, try to parse it as a string.
             try:
