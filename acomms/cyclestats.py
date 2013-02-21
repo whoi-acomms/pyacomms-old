@@ -57,7 +57,7 @@ class CycleStats(dict):
                     ts=self['toa'], rate_num=self['rate_num'])
         if self['rate_num'] is 0:
             hrstr = hrstr + "DQF: {dqf:.0f}\tBad Frames: {bad_frames:.0f}".format(dqf=self['dqf'], bad_frames=self['bad_frames_num'])
-        if self['rate_num'] in range(2,7):
+        if self['rate_num'] in range(1,7):
             hrstr = hrstr + "PSK Error: {psk_error:.0f}\tBad Frames: {bad_frames:.0f}\tInput SNR: {snr_in:.1f}\tMSE: {mse:.1f}".format(
                         snr_in=self['snr_in'], mse=self['mse'], bad_frames=self['bad_frames_num'], psk_error=self['psk_error'])
                    
@@ -170,7 +170,7 @@ class CycleStats(dict):
             else:
                 values['noise'] = -100
             
-            if len(msg['params']) >= 27:
+            if len(msg['params']) >= 28:
                 values['carrier'] = int(msg['params'][27])
                 values['bandwidth'] = int(msg['params'][28])
                 version_number = 4
