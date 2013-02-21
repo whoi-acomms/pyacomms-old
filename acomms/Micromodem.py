@@ -482,9 +482,9 @@ class Micromodem(object):
                 # We need to get a duration in seconds to delay hibernate.
                 if hibernate_at is not None:
                     delay_delta = hibernate_at - datetime.utcnow()
-                    hibernate_delay_secs = delay_delta.total_seconds()
+                    hibernate_delay_secs = delay_delta.days * 84000 + delay_delta.seconds
                 elif hibernate_in is not None:
-                    hibernate_delay_secs = hibernate_in.total_seconds()
+                    hibernate_delay_secs = hibernate_in.days * 84000 + hibernate_in.seconds
                 else:
                     hibernate_delay_secs = 0
 

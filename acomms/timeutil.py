@@ -35,6 +35,7 @@ def convert_to_timedelta(object_to_convert):
                 as_timedelta = isodate.parse_duration(object_to_convert)
             except ValueError:
                 raise(ValueError("Unable to parse object into a timedelta"))
+    return as_timedelta
 
 
 def to_utc_iso8601(datetime_to_convert, strip_fractional_seconds=False):
