@@ -78,9 +78,9 @@ class Micromodem(object):
             unified_log = UnifiedLog(log_path=log_path)
         self._daemon_log = unified_log.getLogger("daemon.{0}".format(self.name))
         self._daemon_log.setLevel(log_level)
-        self._nmea_in_log = unified_log.getLogger("nmea.frommodem.{0}".format(self.name))
+        self._nmea_in_log = unified_log.getLogger("nmea.from.{0}".format(self.name))
         self._nmea_in_log.setLevel(logging.INFO)
-        self._nmea_out_log = unified_log.getLogger("nmea.tomodem.{0}".format(self.name))
+        self._nmea_out_log = unified_log.getLogger("nmea.to.{0}".format(self.name))
         self._nmea_out_log.setLevel(logging.INFO)
         self.unified_log = unified_log
 
@@ -100,6 +100,7 @@ class Micromodem(object):
 
     def connect_serial(self, port, baudrate=19200):
         self.connection = SerialConnection(self, port, baudrate)
+        self._daemon_log.info("Connected to {0} ({1} bps)".format(port, baudrate))
         self.query_modem_info()
 
     def disconnect(self):

@@ -18,13 +18,13 @@ class MessageParser:
         try:
             func = getattr(self, msg['type'])
         except AttributeError, e:
-            self.modem.daemonlog.warn('Unrecognized message: ' + str(msg['type']))
+            self.modem._daemon_log.warn('Unrecognized message: ' + str(msg['type']))
             func = None
         try:
             if func != None:
                 return func(msg)
         except Exception, e:
-            self.modem.daemonlog.error("Exception when parsing: " + str(sys.exc_info()[0]))
+            self.modem._daemon_log.error("Exception when parsing: " + str(sys.exc_info()[0]))
             traceback.print_exc()
         
     def CACFG(self, msg):
@@ -152,7 +152,7 @@ class MessageParser:
         args = msg["params"]
         datestr = str(args[1]) + str(args[2]) + str(args[3]) + str(args[4]) + str(args[0]) + '.' + str(args[5])
         if self.modem.set_host_clock_flag == True:
-            self.modem.daemonlog.warn("Setting host clock to: " + datestr)
+            self.modem._daemon_log.warn("Setting host clock to: " + datestr)
             #TODO: This probably shouldn't be part of this module.
             os.system('/bin/date -u ' + datestr)
             self.modem.set_host_clock_flag = False
@@ -165,6 +165,6 @@ class MessageParser:
             # Raise the event
             self.modem.on_cst(cst, msg)
         except Exception, ex:
-            self.modem.daemonlog.error("Error parsing CST: " + str(sys.exc_info()[0]))
+            self.modem._daemon_log.error("Error parsing CST: " + str(sys.exc_info()[0]))
         
         
