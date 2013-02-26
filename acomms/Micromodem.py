@@ -15,6 +15,7 @@ import commstate
 from messageparser import MessageParser
 from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame
 from acomms.modem_connections import SerialConnection
+from unifiedlog import UnifiedLog
 
 
 # Convert a string to a byte listing
@@ -35,21 +36,15 @@ class UnavailableInApiLevelError(Exception):
 
 
 class Micromodem(object):
-    def __init__(self, name='modem', logpath='/var/log/', consolelog='WARN', logformat='Default'):
+    def __init__(self, name='modem', unified_log=None, log_path=None, log_level='INFO'):
 
         name = str(name)
         # Strip non-alphanumeric characters from name
         self.name = ''.join([ch for ch in name if ch.isalnum()])
 
-        self.logpath = logpath
-        if self.logpath[-1] != '/':
-            self.logpath += '/'
-
-        self.logformat = logformat
-
         self.connection = None
 
-        self.nmea_listeners = [ ]
+        self.nmea_listeners = []
 
         self.parser = MessageParser(self)
         self.state = commstate.Idle(comms=self)
@@ -75,13 +70,21 @@ class Micromodem(object):
         self.set_host_clock_flag = False
         
         self.serial_tx_queue = Queue()
-        
-        self.nmealog = None
-        self.daemonlog = None        
-        self.start_nmea_logger(consolelog)
-        self.start_daemon_logger(consolelog)
-        
+
         self.get_uplink_data_function = None
+
+        # Set up logging
+        if unified_log is None:
+            unified_log = UnifiedLog(log_path=log_path)
+        self._daemon_log = unified_log.getLogger("daemon.{0}".format(self.name))
+        self._daemon_log.setLevel(log_level)
+        self._nmea_in_log = unified_log.getLogger("nmea.frommodem.{0}".format(self.name))
+        self._nmea_in_log.setLevel(logging.INFO)
+        self._nmea_out_log = unified_log.getLogger("nmea.tomodem.{0}".format(self.name))
+        self._nmea_out_log.setLevel(logging.INFO)
+        self.unified_log = unified_log
+
+
 
     @property
     def api_level(self):
@@ -110,72 +113,59 @@ class Micromodem(object):
         sleep(0.05)
         # All of the salient properties on this object are populated automatically by the NMEA config handler.
 
-    def start_nmea_logger(self,consolelog):
-        if self.nmealog == None:
-            now = datetime.utcnow()
-            logfilename = self.name + "_nmea_{0}.log".format(now.strftime("%Y-%m-%d_%H-%M-%S"))
-            logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t{0}\t%(message)s".format(self.name), "%Y-%m-%d %H:%M:%S")
-            mtmaformat = logging.Formatter("%(asctime)sZ,RX,%(message)s", "%Y-%m-%d %H:%M:%S")
-            self.nmealog = logging.getLogger(self.name + '_nmea')
-            self.nmealog.setLevel(logging.DEBUG)
-            
-            # Create the log directory if it doesn't exist.
-            if not os.path.isdir(self.logpath):
-                os.makedirs(self.logpath)                 
-            fh = logging.FileHandler(self.logpath + logfilename)
-            fh.setLevel(logging.DEBUG)
-            if self.logformat.lower() == "modemtma":
-                fh.setFormatter(mtmaformat)
-            else:		
-                fh.setFormatter(logformat)
-            if consolelog != 'DISABLED':
-                ch = logging.StreamHandler()
-                ch.setLevel(consolelog)
-                ch.setFormatter(logformat)
-                self.nmealog.addHandler(ch)
-            self.nmealog.addHandler(fh)
-            self.nmealog.info("$PYMODEM,Starting NMEA log,{0}".format(self.name))
-        
-    def start_daemon_logger(self, consolelog):
-        if self.daemonlog == None:
-            now = datetime.utcnow()
-            logfilename = self.name + "_pymodem_{0}.log".format(now.strftime("%Y-%m-%d_%H-%M-%S"))
-            logformat = logging.Formatter("%(asctime)s\t%(levelname)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
-            self.daemonlog = logging.getLogger(self.name + "_pymodem")
-            self.daemonlog.setLevel(logging.DEBUG)
+    def start_nmea_logger(self, nmea_log_format, log_path=None, file_name=None):
+        """ This starts an additional log file that only logs NMEA messages, primarily for compatibility with other
+            systems.
+        """
+        nmea_log_format = nmea_log_format.lower()
+        if nmea_log_format == "modemtma":
+            logformat = logging.Formatter("%(asctime)sZ,RX,%(message)s", "%Y-%m-%d %H:%M:%S")
+        elif nmea_log_format == "messagesonly":
+            logformat = logging.Formatter("%(message)s")
+        elif nmea_log_format == "timestamped":
+            logformat = logging.Formatter("%(asctime)s\t%(message)s", "%Y-%m-%dT%H:%M:%SZ")
+        else:
+            raise(ValueError("Unrecognized nmea_log_format"))
 
-            # Create the log directory if it doesn't exist.
-            if not os.path.isdir(self.logpath):
-                os.makedirs(self.logpath)                             
-            fh = logging.FileHandler(self.logpath + logfilename)
-            fh.setLevel(logging.INFO)
-            fh.setFormatter(logformat)
-            if consolelog != 'DISABLED':            
-                ch = logging.StreamHandler()
-                ch.setLevel(consolelog)
-                ch.setFormatter(logformat)
-                self.daemonlog.addHandler(ch)
-            self.daemonlog.addHandler(fh)
-            self.daemonlog.info("Starting daemon log,{0}".format(self.name))
+        # If no log path is specified, use (or create) a directory in the user's home directory
+        if log_path is None:
+            log_path = os.path.expanduser('~/acomms_logs')
+        log_path = os.path.normpath(log_path)
 
+        # Create the directory if it doesn't exist
+        if not os.path.isdir(log_path):
+            os.makedirs(log_path)
+
+        if file_name is None:
+            now = datetime.utcnow()
+            file_name = "nmea_{0}_{1}.log".format(self.name, now.strftime("%Y%m%dT%H%M%SZ"))
+
+        log_file_path = os.path.join(log_path, file_name)
+
+        handler = logging.FileHandler(log_file_path)
+        handler.setLevel(logging.INFO)
+
+        self._nmea_in_log.addHandler(handler)
+
+        self._daemon_log.debug("Started new NMEA log")
 
     def _process_outgoing_nmea(self):
         # Now, transmit anything we have in the outgoing queue.
         try:
             txstring = self.serial_tx_queue.get_nowait()
             self.connection.write(txstring)
-            self.nmealog.info(txstring.rstrip('\r\n'))
+            self._nmea_out_log.info(txstring.rstrip('\r\n'))
         #If the queue is empty, then pass, otherwise log error
         except Empty:
             pass
         except:
-            self.daemonlog.exception("NMEA Output Error")        
+            self._daemon_log.exception("NMEA Output Error")
                 
     def _process_incoming_nmea(self, msg):
         if msg is not None:
             try:
                 #self.nmealog.info("< " + msg.rstrip('\r\n'))
-                self.nmealog.info(msg.rstrip('\r\n'))                
+                self._nmea_in_log.info(msg.rstrip('\r\n'))
 
                 msg = Message(msg)
                 
@@ -188,28 +178,28 @@ class Micromodem(object):
                     try:
                         q.put_nowait(msg)
                     except:
-                        self.daemonlog.warn("Error appending to incoming message queue")
+                        self._daemon_log.warn("Error appending to incoming message queue")
             except ChecksumException:
-                self.daemonlog.warn("NMEA Checksum Error: %s" % (msg.rstrip('\r\n')))
+                self._daemon_log.warn("NMEA Checksum Error: %s" % (msg.rstrip('\r\n')))
             except:
-                self.daemonlog.warn("NMEA Input Error")
+                self._daemon_log.warn("NMEA Input Error")
 
 
     def close_loggers(self):
-        for hdlr in self.daemonlog.handlers:
+        for hdlr in self._daemon_log.handlers:
             hdlr.flush()
             hdlr.close()
-            self.daemonlog.removeHandler(hdlr)
+            self._daemon_log.removeHandler(hdlr)
         
-        for hdlr in self.nmealog.handlers:
+        for hdlr in self._nmea_in_log.handlers:
             hdlr.flush()
             hdlr.close()
-            self.nmealog.removeHandler(hdlr)
+            self._nmea_in_log.removeHandler(hdlr)
         
         
     def _changestate(self, newstate):
         self.state = newstate(comms=self)
-        self.daemonlog.debug("Changed state to " + str(self.state))
+        self._daemon_log.debug("Changed state to " + str(self.state))
         self.state.entering()
 
     def write_nmea(self, msg):
@@ -222,21 +212,21 @@ class Micromodem(object):
         #Serial.write(self, message )
         
         # Queue this message for transmit in the serial thread
-        self.daemonlog.debug("WRITING NMEA TO QUEUE: %s" % (message))
+        self._daemon_log.debug("Writing NMEA to output queue: %s" % (message.rstrip('\r\n')))
         try:
             self.serial_tx_queue.put(message, block=False)
         #If queue full, then ignore
         except Full:
-            self.daemonlog.debug("write_nmea: Serial TX Queue Full")
+            self._daemon_log.debug("write_nmea: Serial TX Queue Full")
 
         
     def write_string(self, string):
-        self.daemonlog.debug("WRITING STRING TO QUEUE: %s" % (string))
+        self._daemon_log.debug("Writing string to output queue: %s" % (string.rstrip('\r\n')))
         try:
             self.serial_tx_queue.put(string, block=False)
         #If queue full, then ignore
         except Full:
-            self.daemonlog.debug("write_string: Serial TX Queue Full")
+            self._daemon_log.debug("write_string: Serial TX Queue Full")
 
 
         
@@ -265,24 +255,24 @@ class Micromodem(object):
         return rl
 
     def on_rxframe(self, dataframe):
-        self.daemonlog.debug("I got a frame!  Yay!")
+        self._daemon_log.debug("I got a frame!  Yay!")
         for func in self.rxframe_listeners:
             func(dataframe)
         
     def on_packettx_failed(self):
-        self.daemonlog.warn("Packet transmit failed.")
+        self._daemon_log.warn("Packet transmit failed.")
         
     def on_packettx_success(self):
-        self.daemonlog.info("Packet transmitted successfully")
+        self._daemon_log.info("Packet transmitted successfully")
         
     def on_packetrx_failed(self):
-        self.daemonlog.warn("Packet RX failed")
+        self._daemon_log.warn("Packet RX failed")
         
     def on_packetrx_success(self):
-        self.daemonlog.info("Packet RX succeeded")
+        self._daemon_log.info("Packet RX succeeded")
         
     def on_cst(self, cst, msg):
-        self.daemonlog.debug("Got CST message")
+        self._daemon_log.debug("Got CST message")
 
         for func in self.cst_listeners: 
             func(cst, msg) # Pass on the CST message.
@@ -292,7 +282,7 @@ class Micromodem(object):
             try:
                 q.put_nowait(cst)
             except:
-                self.daemonlog.warn("Error appending to incoming CST queue")        
+                self._daemon_log.warn("Error appending to incoming CST queue")
     
     def send_packet(self, packet):
         # FIXME this is a hack
@@ -364,7 +354,7 @@ class Micromodem(object):
         self.write_nmea(msg)
     
     def send_cycleinit(self, cycleinfo):
-        self.daemonlog.debug("Sending CCCYC with Following Parameters: %s" % (str([0, cycleinfo.src, cycleinfo.dest, cycleinfo.rate_num, 
+        self._daemon_log.debug("Sending CCCYC with Following Parameters: %s" % (str([0, cycleinfo.src, cycleinfo.dest, cycleinfo.rate_num,
                                          int(cycleinfo.ack), cycleinfo.num_frames])))
         # Build the corresponding CCCYC message
         msg = {'type':'CCCYC', 'params':[0, cycleinfo.src, cycleinfo.dest, cycleinfo.rate_num, 
