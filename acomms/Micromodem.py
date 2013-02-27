@@ -196,6 +196,11 @@ class Micromodem(object):
             hdlr.flush()
             hdlr.close()
             self._nmea_in_log.removeHandler(hdlr)
+
+        for hdlr in self._nmea_out_log.handlers:
+            hdlr.flush()
+            hdlr.close()
+            self._nmea_out_log.removeHandler(hdlr)
         
         
     def _changestate(self, newstate):
