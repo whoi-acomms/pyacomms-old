@@ -167,4 +167,5 @@ class MessageParser:
         except Exception, ex:
             self.modem._daemon_log.error("Error parsing CST: " + str(sys.exc_info()[0]))
         
-        
+    def CATRC(self, msg):
+        pass
