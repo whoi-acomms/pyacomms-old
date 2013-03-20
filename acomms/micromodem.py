@@ -300,11 +300,10 @@ class Micromodem(object):
         
         self.send_packet(packet)
         
-    def send_packet_data(self, dest, databytes, rate_num=1):
+    def send_packet_data(self, dest, databytes, rate_num=1, ack=False):
         # When life gives you data, make frames.
         rate = Rates[rate_num]
         src = self.id
-        ack = False
         
         # For now, truncate the data to fit in this packet
         databytes = databytes[0:(rate.maxpacketsize - 1)]
@@ -322,10 +321,9 @@ class Micromodem(object):
         
         self.send_packet_frames(dest, rate_num, frames)
         
-    def send_test_packet(self, dest, rate_num=1, num_frames=None):
+    def send_test_packet(self, dest, rate_num=1, num_frames=None, ack=False):
         rate = Rates[rate_num]
         src = self.id
-        ack = False
         
         # How many frames shall we send?
         if num_frames == None:
@@ -340,19 +338,15 @@ class Micromodem(object):
         
         # Send a packet
         self.send_packet_frames(dest, rate_num, frames)
-        
-                
-    
-    def send_current_txframe(self, frame_num=None):
+
+    def _send_current_txframe(self, frame_num=None):
         # TODO: Make sure we actually have a packet to send
                 
         if frame_num == None:
             frame_num = self.current_tx_frame_num
                    
         self.send_frame(self.current_txpacket.frames[frame_num-1])
-        
-        
-        
+
     def send_frame(self, dataframe):
         # Build the corresponding CCTXD message
         msg = {'type':'CCTXD', 'params':[dataframe.src, dataframe.dest, int(dataframe.ack), 
@@ -376,7 +370,6 @@ class Micromodem(object):
         cycleinfo = CycleInfo(src_id, dest_id, rate_num, ack, 1)
         
         self.send_cycleinit(cycleinfo)
-        
 
     def send_uplink_frame(self,drqparams):
         if self.get_uplink_data_function is not None:
@@ -385,7 +378,6 @@ class Micromodem(object):
             data = bytearray(struct.pack('!BBBBi', 0, 0, 1, 0, int(time())))
             
         self.send_frame(DataFrame(src = drqparams.src,dest = drqparams.dest, ack = drqparams.ack, frame_num = drqparams.frame_num, data=data))    
-            
 
     def send_ping(self, dest_id):
         # Build the CCMPC message

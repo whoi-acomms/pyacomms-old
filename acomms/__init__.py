@@ -1,4 +1,4 @@
-from Micromodem import *
+from micromodem import *
 from commstate import *
 from cyclestats import *
 from messageparams import *

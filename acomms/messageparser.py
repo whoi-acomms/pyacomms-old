@@ -169,3 +169,9 @@ class MessageParser:
         
     def CATRC(self, msg):
         pass
+
+    def CAACK(self, msg):
+        pass
+
+    def CATOA(self, msg):
+        pass

@@ -215,7 +215,7 @@ class WaitingForDrq(CommState):
                     and drqparams.num_bytes == Rates[self.modem.current_txpacket.cycleinfo.rate_num].framesize
                     and drqparams.frame_num == self.modem.current_tx_frame_num):
                 # Send the frame
-                self.modem.send_current_txframe()
+                self.modem._send_current_txframe()
                 
                 # Was this the last frame?
                 if drqparams.frame_num < self.modem.current_txpacket.cycleinfo.num_frames:
