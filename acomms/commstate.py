@@ -41,13 +41,15 @@ class CommState(object):
     def got_pskerror(self, message):
         self.modem._daemon_log.debug("[" + str(self) + "]: Got PSK Error")
         pass
-    def got_carev(self):
+    def got_carev(self, msg):
         self.modem._daemon_log.debug("[" + str(self) + "]: Got CAREV")
         # If we got a CAREV, we are done with any and all modem cycles.
-        if self.modem.current_txpacket != None:
-            self.modem.on_packettx_failed()
-            
-        self.modem._changestate(Idle)
+        # However, we need to make sure that it isn't a COPROC message, since those often seem to break the state machine.
+        if msg['params'][1] != "COPROC":
+            if self.modem.current_txpacket:
+                self.modem.on_packettx_failed()
+
+            self.modem._changestate(Idle)
         pass
     
     def got_caerr(self,hhmmss,module,err_num,message):

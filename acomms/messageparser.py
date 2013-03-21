@@ -104,8 +104,8 @@ class MessageParser:
             self.modem.state.got_caerr(hhmmss,module,err_num,message)
     
     def CAREV(self, msg):
-        '''Reversion Message'''
-        self.modem.state.got_carev()
+        '''Revision Message'''
+        self.modem.state.got_carev(msg)
         
     def CATXP(self, msg):
         '''Start of Packet Transmission Acoustically'''
