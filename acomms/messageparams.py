@@ -46,7 +46,10 @@ class DataFrame(object):
         self.dest = dest
         self.ack = ack
         self.frame_num = frame_num
-        self.data = bytearray(data)
+        if data:
+            self.data = bytearray(data)
+        else:
+            self.data = None
         
 class Packet(object):
     def __init__(self, cycleinfo, frames=None):
@@ -85,11 +88,4 @@ Rates = {0:PacketRate('FH-FSK', 0, 32, 1),
          6:PacketRate('DSS 1/15 (32B frames)', 6, 32, 6)}
 
 
-class RxCycle(object):
-    def __init__(self, cyclestats, packet=None, ):
-        self.packet = None
-        
-        
-        pass
-    
     

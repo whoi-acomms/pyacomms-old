@@ -4,19 +4,33 @@ Created on Jan 25, 2012
 @author: Eric
 '''
 
-from messageparams import Packet, Rates
+from messageparams import Packet, Rates, DataFrame
 
-import logging
-from time import sleep
+import timer2
 
 class CommState(object):
     '''
     classdocs
     '''
+
+    # Default timeout for each state.  Call timeout method after this time has elapsed.
+    timeout_seconds = 10
+
+    def __init__(self, modem):
+        self.modem = modem
+
+
     def entering(self):
         self.modem._daemon_log.debug("Entering new state: " + str(self))
-        pass
-        
+
+        # Stop any timeout timer that is currently running.
+        self.modem.state_timer.clear()
+
+        # Start a new timeout timer, if this state requires one.
+        if self.timeout_seconds:
+            self.modem.state_timer.apply_after(self.timeout_seconds * 1000, self.timeout, args=[self])
+
+
     def got_cacyc(self, cycleinfo):
         self.modem._daemon_log.debug("[" + str(self) + "]: Got CACYC")
         pass
@@ -43,12 +57,10 @@ class CommState(object):
         pass
     def got_carev(self, msg):
         self.modem._daemon_log.debug("[" + str(self) + "]: Got CAREV")
-        # If we got a CAREV, we are done with any and all modem cycles.
-        # However, we need to make sure that it isn't a COPROC message, since those often seem to break the state machine.
-        if msg['params'][1] != "COPROC":
+        # See if we just rebooted.
+        if msg['params'][1] != "INIT":
             if self.modem.current_txpacket:
                 self.modem.on_packettx_failed()
-
             self.modem._changestate(Idle)
         pass
     
@@ -60,35 +72,45 @@ class CommState(object):
         self.modem._daemon_log.debug("[" + str(self) + "]: Got CAMSG. (Type:%s Number:%d)" % (msg_type,number))
         pass
     
-    def got_campa(self,src,dest):
-        self.modem._daemon_log.debug("[" + str(self) + "]: Got Ping From %d to %d" % (src,dest))
+    def got_campa(self, src, dest):
+        self.modem._daemon_log.debug("[" + str(self) + "]: Heard Ping Request From %d to %d" % (src,dest))
         pass
-    
+
+    def got_camea(self, src, dest):
+        self.modem._daemon_log.debug("[" + str(self) + "]: Heard Line Control Command From %d to %d" % (src,dest))
+        pass
+
+    def got_camsa(self, src, dest):
+        self.modem._daemon_log.debug("[" + str(self) + "]: Heard Sleep Command From %d to %d" % (src,dest))
+        pass
+
+    def got_minipacket_cmd(self, cmd, src):
+        self.modem._daemon_log.debug("[{state}]: Got {cmd} Command from {src}".format(self, cmd, src))
+
+    def send_minipacket_cmd(self, cmd, dest):
+        pass
+
     def got_cadqf(self, dqf, packet_type):
         self.modem._daemon_log.debug("[" + str(self) + "]: Got CADQF. (DQF:%d Packet Type:%d)" % (dqf,packet_type))
         pass
-    
+
     def sent_cccyc(self, cycleinfo):
         self.modem._daemon_log.debug("[" + str(self) + "]: Sent CCCYC")
         pass
+
     def timeout(self):
         self.modem._daemon_log.debug("[" + str(self) + "]: Timed out")
         pass
     
     def send_packet(self, packet):
         self.modem._daemon_log.warn("Trying to send packet while modem is busy.")
-    
 
-    def __init__(self, comms):
-        '''
-        Constructor
-        '''
 
 class Idle(CommState):
-    
-    def __init__(self, comms):
-        self.modem = comms
-    
+
+    # Idle is the only state that never times out.
+    timeout_seconds = None
+
     def entering(self):
         super(Idle, self).entering()
         
@@ -119,6 +141,8 @@ class Idle(CommState):
             self.modem._changestate(WaitingForDrq)
         else:
             self.modem._changestate(WaitingForRxData)
+
+
             
     def send_packet(self, packet):
         self.modem._daemon_log.info("Sending packet from Idle")
@@ -131,16 +155,25 @@ class Idle(CommState):
         self.modem.send_cycleinit(packet.cycleinfo)
         
         self.modem._changestate(WaitingForCacyc)
+
+    def send_minipacket_cmd(self, cmd, dest):
+        self.modem._daemon_log.info("Sending {cmd} Command from Idle".format(cmd))
+        self.modem.send_ping()
+        self.modem._changestate(WaitingForMinipacketTxf)
+
+    def got_minipacket_cmd(self, cmd, src):
+        super(Idle, self).got_minipacket_cmd(cmd, src)
+
+        # Once we get a minipacket command, we send a reply...
+        self.modem._changestate(WaitingForMinipacketTxf)
+
     
     def __str__(self):
         return "Idle"
         
 class WaitingForCacyc(CommState):
     ''' State: Waiting for the modem to echo a $CACYC message in response to a $CCCYC message that we issued. '''
-    
-    def __init__(self, comms):
-        self.modem = comms
-        
+
     def entering(self):
         super(WaitingForCacyc, self).entering()
         
@@ -195,16 +228,12 @@ class WaitingForCacyc(CommState):
 
 class WaitingForDrq(CommState):
     ''' State: Waiting for modem to issue a $CADRQ message, since we got a CACYC and plan to transmit data. '''
-    
-    def __init__(self, comms):
-        self.modem = comms
-        
+
+    timeout_seconds = 10
+
     def entering(self):
         super(WaitingForDrq, self).entering()
 
-        
-        # Start the timeout timer
-        #self.modem.start_timeout(settings.drq_timeout)
         
     def got_cadrq(self, drqparams):
         CommState.got_cadrq(self, drqparams)
@@ -294,10 +323,7 @@ class WaitingForDrq(CommState):
 
 class WaitingForTxf(CommState):
     ''' State: Waiting for the $CATXF message when we expect the modem to transmit. '''
-    
-    def __init__(self, comms):
-        self.modem = comms
-        
+
     def entering(self):
         CommState.entering(self)
         
@@ -321,10 +347,7 @@ class WaitingForTxf(CommState):
         
 class WaitingForCiTxf(CommState):
     ''' State: Waiting for the $CATXF message when we expect the modem to transmit a cycle init. '''
-    
-    def __init__(self, comms):
-        self.modem = comms
-        
+
     def entering(self):
         CommState.entering(self)
         
@@ -357,12 +380,30 @@ class WaitingForCiTxf(CommState):
     def __str__(self):
         return "Waiting for CI CATXF"
 
+
+class WaitingForMinipacketTxf(CommState):
+    def got_catxf(self):
+        CommState.got_catxf(self)
+
+        # That should do it.
+        self.modem._changestate(Idle)
+
+    def timeout(self):
+        CommState.timeout(self)
+
+        # We timed out, so signal an error
+        # Note that the modem might not really be done transmitting.
+        self.modem.on_minipacket_tx_failed()
+
+        self.modem._changestate(Idle)
+
+    def __str__(self):
+        return "Waiting for Minipacket Command CATXF"
+
+
 class WaitingForPacket(CommState):
     ''' State: Waiting for a packet following an uplink request. '''
-    
-    def __init__(self, comms):
-        self.modem = comms
-        
+
     def entering(self):
         CommState.entering(self)
         
@@ -403,10 +444,7 @@ class WaitingForPacket(CommState):
         
 class WaitingForRxData(CommState):
     ''' State: Waiting for $CARXD or $CARXA messages after getting a $CACYC message that suggests we should.  '''
-    
-    def __init__(self, comms):
-        self.modem = comms
-        
+
     def entering(self):
         CommState.entering(self)
         
@@ -423,19 +461,31 @@ class WaitingForRxData(CommState):
                 and rxdataframe.dest == self.modem.current_rxpacket.cycleinfo.dest):
             # Copy this new data to our packet in progress
             self.modem.current_rxpacket.frames.append(rxdataframe)
+
+            # Check to see if this frame had the ACK bit set.
+            if rxdataframe.ack:
+                self.modem.current_rxpacket.cycleinfo.ack = True
             
             # See if this was the last frame
             if rxdataframe.frame_num >= self.modem.current_rxpacket.cycleinfo.num_frames:
                 # We got a complete packet
-                self.modem.on_packetrx_success()
-                
-                # Go back to Idle
-                self.modem._changestate(Idle)
+                # See if it had BAD_CRCs on any frame.
+                if any(frame.bad_crc for frame in self.modem.current_rxpacket.frames):
+                    self.modem.on_packetrx_failed
+                else:
+                    self.modem.on_packetrx_success()
+
+                # Are we sending ACKs?  If so, wait for that.
+                if self.modem.current_rxpacket.cycleinfo.ack:
+                    self.modem._changestate(WaitingForMinipacketTxf)
+                else:
+                    # Go back to Idle
+                    self.modem._changestate(Idle)
             
-                #TODO: check for ACKS
+
             else:
                 # We are waiting for another frame
-                self.modem._changestate(WaitingForRxData)
+                pass
         else:
             # This is not the frame we were expecting
             # We can't make a good packet, so signal an error
@@ -444,12 +494,25 @@ class WaitingForRxData(CommState):
         
     def got_badcrc(self):
         CommState.got_badcrc(self)
-        
-        # If we are receiving a packet, we just failed.
-        if self.modem.current_rxpacket != None:
+
+        # Add this BAD_CRC as a "frame" to the current packet.
+        this_frame_num = self.modem.current_rxpacket.frames[-1].frame_num + 1
+        this_quote_frame = DataFrame(self.modem.current_rxpacket.cycleinfo.src,
+                                     self.modem.current_rxpacket.cycleinfo.dest,
+                                     self.modem.current_rxpacket.cycleinfo.ack,
+                                     this_frame_num,
+                                     None,
+                                     bad_crc=True)
+        self.modem.current_rxpacket.frames.append(this_quote_frame)
+
+        # See if this was the last frame
+        if this_frame_num >= self.modem.current_rxpacket.cycleinfo.num_frames:
+            # This packet is done, and it failed.
             self.modem.on_packetrx_failed()
-        
-        self.modem._changestate(Idle)
+            self.modem._changestate(Idle)
+        else:
+            # We are still waiting for the next frame.
+            pass
         
     def timeout(self):
         CommState.timeout(self)
@@ -463,5 +526,3 @@ class WaitingForRxData(CommState):
     def __str__(self):
         return "Waiting for RX Data"
                 
-            
-            

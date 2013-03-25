@@ -8,6 +8,7 @@ from Queue import Empty, Full
 from multiprocessing import Queue
 import logging
 import struct
+import timer2
 
 from serial import Serial
 
@@ -47,7 +48,8 @@ class Micromodem(object):
         self.nmea_listeners = []
 
         self.parser = MessageParser(self)
-        self.state = commstate.Idle(comms=self)
+        self.state = commstate.Idle(modem=self)
+        self.state_timer = timer2.Timer()
         
         self.rxframe_listeners = []
         self.cst_listeners = []
@@ -204,7 +206,7 @@ class Micromodem(object):
         
         
     def _changestate(self, newstate):
-        self.state = newstate(comms=self)
+        self.state = newstate(modem=self)
         self._daemon_log.debug("Changed state to " + str(self.state))
         self.state.entering()
 

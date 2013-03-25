@@ -28,6 +28,7 @@ setup(
         "pyserial >= 2.6",
         "isodate >= 0.4.9",
         "python-dateutil >= 2.1",
+        "timer2 >= 0.1.0",
         "ez_setup >= 0.6",
     ],
     classifiers=[
