@@ -28,7 +28,7 @@ class CommState(object):
 
         # Start a new timeout timer, if this state requires one.
         if self.timeout_seconds:
-            self.modem.state_timer.apply_after(self.timeout_seconds * 1000, self.timeout, args=[self])
+            self.modem.state_timer.apply_after(self.timeout_seconds * 1000, self.timeout)
 
 
     def got_cacyc(self, cycleinfo):
