@@ -58,7 +58,7 @@ class CommState(object):
     def got_carev(self, msg):
         self.modem._daemon_log.debug("[" + str(self) + "]: Got CAREV")
         # See if we just rebooted.
-        if msg['params'][1] != "INIT":
+        if msg['params'][1] == "INIT":
             if self.modem.current_txpacket:
                 self.modem.on_packettx_failed()
             self.modem._changestate(Idle)
