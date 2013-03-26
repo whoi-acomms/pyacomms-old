@@ -36,6 +36,14 @@ class UnavailableInApiLevelError(Exception):
     pass
 
 
+class ModemResponseTimeout(Exception):
+    pass
+
+
+class ModemResponseError(Exception):
+    pass
+
+
 class Micromodem(object):
     def __init__(self, name='modem', unified_log=None, log_path=None, log_level='INFO'):
 
@@ -242,6 +250,35 @@ class Micromodem(object):
         msg = { 'type':"CCCFQ", 'params':[ param ] }
         self.write_nmea( msg )
         
+    def get_config(self, param, response_timeout=2):
+        msg = {'type': "CCCFQ", 'params': [param]}
+        self.write_nmea(msg)
+
+        config_dict = {}
+
+        if response_timeout:
+            while True:
+                msg = self.wait_for_nmea_type('CACFG', timeout=response_timeout)
+                param_name = msg['params'][0]
+                param_value = msg['params'][1]
+                if msg:
+                    # If we queried a config group, there is no associated value to add to the dictionary.
+                    if param_value != "":
+                        config_dict[msg['params'][0]] = msg['params'][1]
+                    # We aren't done unless this config parameter matched the one we queried
+                    if msg['params'][0] == param:
+                        break
+                    else:
+                        continue
+                else:
+                    break
+
+            if config_dict:
+                return config_dict
+            else:
+                return None
+        else:
+            return None
 
 
     def raw_readline(self):
@@ -402,9 +439,18 @@ class Micromodem(object):
         
         self.write_nmea(msg)
         
-    def set_config(self, name, value):
-        msg = {'type':'CCCFG', 'params':[str(name), str(value)]}
+    def set_config(self, name, value, response_timeout=2):
+        params = [str(name), str(value)]
+        msg = {'type':'CCCFG', 'params':params}
         self.write_nmea(msg)
+
+        if not response_timeout:
+            return
+
+        response = self.wait_for_nmea_type('CCCFG', params=params, timeout=response_timeout)
+        if not response:
+            raise(ModemResponseError("No valid CACFG response within timeout"))
+
         
     def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False):
         ''' Start hibernating this modem.  This function will attempt to adapt to the limited capabilities of older
@@ -572,6 +618,41 @@ class Micromodem(object):
         
         self.detach_incoming_msg_queue(incoming_msg_queue)
             
+        return matching_msg
+
+    def wait_for_nmea_type(self, type_string, params=None, timeout=None):
+        incoming_msg_queue = Queue()
+        self.attach_incoming_msg_queue(incoming_msg_queue)
+
+        matching_msg = None
+
+        remaining_time = timeout
+        if remaining_time is not None:
+            # If this program is ported to Python 3, this should be changed to use time.steady().
+            end_time = time() + timeout
+
+        while (remaining_time is None) or (remaining_time > 0):
+            try:
+                new_msg = incoming_msg_queue.get(timeout=remaining_time)
+                if new_msg['type'] is type_string:
+                    if params:
+                        if len(new_msg['params']) != len(params):
+                            continue
+                        for (n, p) in zip(new_msg['params'], params):
+                            if n != p:
+                                continue
+
+                    matching_msg = new_msg
+                    break
+                else:
+                    if remaining_time is not None:
+                        remaining_time = end_time - time()
+                    continue
+            except Empty:
+                break
+
+        self.detach_incoming_msg_queue(incoming_msg_queue)
+
         return matching_msg
 
     def wait_for_nmea_type(self, type_string, timeout=None):
