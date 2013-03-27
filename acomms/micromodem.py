@@ -447,7 +447,7 @@ class Micromodem(object):
         if not response_timeout:
             return
 
-        response = self.wait_for_nmea_type('CCCFG', timeout=response_timeout, params=params)
+        response = self.wait_for_nmea_type('CACFG', timeout=response_timeout, params=params)
         if not response:
             raise(ModemResponseError("No valid CACFG response within timeout"))
 
