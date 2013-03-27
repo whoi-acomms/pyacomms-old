@@ -449,7 +449,9 @@ class Micromodem(object):
 
         response = self.wait_for_nmea_type('CACFG', timeout=response_timeout, params=params)
         if not response:
-            raise(ModemResponseError("No valid CACFG response within timeout"))
+            return None
+        else:
+            return {str(name), str(value)}
 
         
     def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False):
