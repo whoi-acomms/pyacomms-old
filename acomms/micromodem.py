@@ -634,7 +634,7 @@ class Micromodem(object):
         while (remaining_time is None) or (remaining_time > 0):
             try:
                 new_msg = incoming_msg_queue.get(timeout=remaining_time)
-                if new_msg['type'] is type_string:
+                if new_msg['type'] == type_string:
                     if params:
                         if len(new_msg['params']) != len(params):
                             continue
