@@ -303,7 +303,10 @@ class Micromodem(object):
         self._daemon_log.debug("I got a frame!  Yay!")
         for func in self.rxframe_listeners:
             func(dataframe)
-        
+
+    def on_minipacket_tx_failed(self):
+        self._daemon_log.warn("Minipacket transmit failed.")
+
     def on_packettx_failed(self):
         self._daemon_log.warn("Packet transmit failed.")
         
