@@ -259,14 +259,14 @@ class Micromodem(object):
         if response_timeout:
             while True:
                 msg = self.wait_for_nmea_type('CACFG', timeout=response_timeout)
-                param_name = msg['params'][0]
-                param_value = msg['params'][1]
                 if msg:
+                    param_name = msg['params'][0]
+                    param_value = msg['params'][1]
                     # If we queried a config group, there is no associated value to add to the dictionary.
                     if param_value != "":
-                        config_dict[msg['params'][0]] = msg['params'][1]
+                        config_dict[param_name] = param_value
                     # We aren't done unless this config parameter matched the one we queried
-                    if msg['params'][0] == param:
+                    if param_name == param:
                         break
                     else:
                         continue

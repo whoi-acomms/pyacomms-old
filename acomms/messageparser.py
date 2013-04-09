@@ -175,3 +175,6 @@ class MessageParser:
 
     def CATOA(self, msg):
         pass
+
+    def CABDD(self, msg):
+        pass
