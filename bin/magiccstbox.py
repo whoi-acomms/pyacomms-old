@@ -62,7 +62,9 @@ def get_csts_from_log_file(log_filename, console_progress=False, drop_packet_tim
                             continue
                     msg = Message(line[dollar_pos:])
                     cst = CycleStats.from_nmea_msg(msg, log_datetime=line_timestamp, drop_packet_timeout=drop_packet_timeout)
-                    cst_list.append(cst)
+                    # For now, drop packet timeouts
+                    if cst.mode != 2:
+                        cst_list.append(cst)
                 except:
                     # We should do something, but we won't.
                     error_count += 1
