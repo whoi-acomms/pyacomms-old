@@ -103,7 +103,7 @@ class CommState(object):
         pass
     
     def send_packet(self, packet):
-        self.modem._daemon_log.warn("Trying to send packet while modem is busy.")
+        self.modem._daemon_log.warn("Trying to send packet while modem is {0}.".format(self.__class__.__name__))
 
 
 class Idle(CommState):
