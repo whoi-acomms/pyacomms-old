@@ -5,7 +5,7 @@ from datetime import datetime
 import timeutil
 import re
 from Queue import Empty, Full
-from multiprocessing import Queue
+from Queue import Queue
 import logging
 import struct
 import timer2
@@ -115,7 +115,7 @@ class Micromodem(object):
 
     def disconnect(self):
         if self.connection is not None:
-            self.connection.disconnect()
+            self.connection.close()
             self.connection = None
 
     def query_modem_info(self):
