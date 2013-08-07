@@ -569,29 +569,22 @@ class Micromodem(object):
             # Make a CCHIB command.
             # Figure out the modes
             if hibernate_in is not None:
-                hibernate_mode = 2
                 hibernate_time = int(hibernate_in.total_seconds())
             elif hibernate_at is not None:
-                hibernate_mode = 1
                 hibernate_time = timeutil.to_utc_iso8601(hibernate_at, strip_fractional_seconds=True)
             else:
-                hibernate_mode = 0
                 hibernate_time = 0
 
             if wake_in is not None:
-                wake_mode = 3
                 wake_time = int(wake_in.total_seconds())
             elif wake_at is not None:
-                wake_mode = 2
                 wake_time = timeutil.to_utc_iso8601(wake_at, strip_fractional_seconds=True)
             elif not disable_schedule:
-                wake_mode = 1
                 wake_time = 0
             else:
-                wake_mode = 0
                 wake_time = 0
 
-            msg = {'type':'CCHIB', 'params':[hibernate_mode, hibernate_time, wake_mode, wake_time]}
+            msg = {'type':'CCHIB', 'params':[hibernate_time, wake_time]}
             self.write_nmea(msg)
 
             if not ignore_response:
