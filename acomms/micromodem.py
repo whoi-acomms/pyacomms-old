@@ -111,7 +111,9 @@ class Micromodem(object):
     def connect_serial(self, port, baudrate=19200):
         self.connection = SerialConnection(self, port, baudrate)
         self._daemon_log.info("Connected to {0} ({1} bps)".format(port, baudrate))
+        sleep(0.05)
         self.query_modem_info()
+        self.query_nmea_api_level()
 
     def disconnect(self):
         if self.connection is not None:
@@ -123,6 +125,26 @@ class Micromodem(object):
         self.get_config_param("ALL")
         sleep(0.05)
         # All of the salient properties on this object are populated automatically by the NMEA config handler.
+
+    def query_nmea_api_level(self):
+        api_level = 0
+
+        msg = {'type': "CCALQ", 'params': [0]}
+        self.write_nmea(msg)
+
+        response = self.wait_for_nmea_types(['CAALQ', 'CAERR'], 0.5)
+
+        if response:
+            if response['type'] == 'CAALQ':
+                api_level = int(response['params'][0])
+            else:
+                api_level = 0
+        else:
+            api_level = 0
+
+        self._api_level = api_level
+        return api_level
+
 
     def start_nmea_logger(self, nmea_log_format, log_path=None, file_name=None):
         """ This starts an additional log file that only logs NMEA messages, primarily for compatibility with other
@@ -569,7 +591,73 @@ class Micromodem(object):
         msg = {'type':'CCCLQ', 'params':[0,]}
         self.write_nmea(msg)
         # The actual clock setting is done by the CACLQ parser when the flag is true.
-    
+
+    def set_time(self, time_to_set=None, mode=None, response_timeout=None, extpps_drive_fxn=None):
+        ''' Set the modem clock to the specified time (or the current time of the host system if time_to_set is not
+         specified.
+         Requires that the modem support the $CCTMS command.
+        '''
+        # For now, don't support the old $CCCLK command.
+        if self._api_level < 11:
+            raise(UnavailableInApiLevelError("This API level doesn't support the enhanced time-setting functionality.  Use the $CCCLK command manually."))
+
+        if time_to_set is None:
+            time_to_set = datetime.utcnow()
+
+        if mode is None:
+            mode = 0
+
+        # Generate the command
+        cmd = Message()
+        cmd['type'] = "CCTMS"
+        cmd['params'][0] = timeutil.to_utc_iso8601(time_to_set, True)
+        cmd['params'][1] = mode
+        # Send it.
+        self.write_nmea(cmd)
+
+        # If the user has specified a function to call to control the EXTPPS line in mode 1, call it.
+        if (mode == 1) and (extpps_drive_fxn is not None):
+            extpps_drive_fxn()
+
+        # If timeout is not None, check the response.
+        if response_timeout is not None:
+            response = self.wait_for_nmea_type('CATMS', response_timeout)
+            if response is None:
+                # We timed out... this could be an error condition
+                return None
+            # Return the argumenst of the CATMS command, more or less...
+            catms_time = timeutil.convert_to_datetime(response['params'][1])
+            timed_out = not bool(response['params'][0])
+            return (timed_out, catms_time)
+        else:
+            return None
+
+    def get_time(self, timeout=0.5):
+        modem_time = self.get_time_info(timeout)[0]
+        return modem_time
+
+    def get_time_info(self, timeout=0.5):
+        # For now, don't support the old $CCCLQ command.
+        if self._api_level < 11:
+            raise(UnavailableInApiLevelError("This API level doesn't support the enhanced time-query functionality.  Use the $CCCLQ command manually."))
+
+        cmd = Message()
+        cmd['type'] = "CCTMQ"
+        cmd['params'][0] = 0
+        self.write_nmea(cmd)
+
+        response = self.wait_for_nmea_type("CATMQ", timeout=timeout)
+        if response is None:
+            return None
+
+        # first argument is the time as an ISO8601 string.
+        modem_time = timeutil.convert_to_datetime(response['params'][0])
+        clock_source = response['params'][1]
+        pps_source = response['params'][2]
+
+        return (modem_time, clock_source, pps_source)
+
+
     def attach_incoming_cst_queue(self, queue_to_attach):
         self.incoming_cst_queues.append(queue_to_attach)
         
@@ -647,6 +735,34 @@ class Micromodem(object):
                             if n != p:
                                 continue
 
+                    matching_msg = new_msg
+                    break
+                else:
+                    if remaining_time is not None:
+                        remaining_time = end_time - time()
+                    continue
+            except Empty:
+                break
+
+        self.detach_incoming_msg_queue(incoming_msg_queue)
+
+        return matching_msg
+
+    def wait_for_nmea_types(self, type_string_list, timeout=None):
+        incoming_msg_queue = Queue()
+        self.attach_incoming_msg_queue(incoming_msg_queue)
+
+        matching_msg = None
+
+        remaining_time = timeout
+        if remaining_time is not None:
+            # If this program is ported to Python 3, this should be changed to use time.steady().
+            end_time = time() + timeout
+
+        while (remaining_time is None) or (remaining_time > 0):
+            try:
+                new_msg = incoming_msg_queue.get(timeout=remaining_time)
+                if new_msg['type'] in type_string_list:
                     matching_msg = new_msg
                     break
                 else:
