@@ -2,6 +2,7 @@
 import os
 from time import sleep, time
 from datetime import datetime
+from django.db.backends.dummy.base import ignore
 import timeutil
 import re
 from Queue import Empty, Full
@@ -9,6 +10,7 @@ from Queue import Queue
 import logging
 import struct
 import timer2
+from collections import namedtuple
 
 from serial import Serial
 
@@ -66,6 +68,7 @@ class Micromodem(object):
         self.incoming_msg_queues = []
 
         self._api_level = 1
+        self.default_nmea_timeout = 0.2
 
         self.id = -1
         self.asd = False
@@ -242,6 +245,10 @@ class Micromodem(object):
 
     def write_nmea(self, msg):
         """Call with the message to send, as an NMEA message.  Correct checksum will be computed."""
+
+        if type(msg) == str:
+            # Automagically convert it into an NMEA message (or try, at least)
+            msg = Message(msg)
         
         message = ",".join( [str(p) for p in [ msg['type'] ] + msg['params']] )
         chk = nmeaChecksum( message )
@@ -479,7 +486,7 @@ class Micromodem(object):
             return {str(name), str(value)}
 
         
-    def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False):
+    def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False, ignore_response=False):
         ''' Start hibernating this modem.  This function will attempt to adapt to the limited capabilities of older
             (uM1) hardware.
         :param wake_at: Absolute time at which to wake.  May be a datetime object, Unix timestamp, or ISO 8601 datetime
@@ -493,6 +500,9 @@ class Micromodem(object):
         :param disable_schedule: (Modem API level >= 10) If this is True and other parameters are all None, this will
             set the wake mode to 0, which causes the modem to ignore any defined wake schedule in its configuration and
             hibernate until an external wake signal is asserted.
+        :param ignore_response: (ignored if API Level < 10) if this is True, this command won't block until a CAHIB
+            response is received (but immediately return None).  If False (default), this function will return the
+            parameters from the CAHIB message.
         '''
         # Make sure that we aren't overconstrained by parameters
         if wake_at is not None and wake_in is not None:
@@ -539,7 +549,7 @@ class Micromodem(object):
 
                 msg = {'type':'CCMSC', 'params':[self.id, self.id, sleep_arg]}
                 self.write_nmea(msg)
-                return
+                return None
 
             else:  # API level 6-9
                 # We need to get a duration in seconds to delay hibernate.
@@ -553,7 +563,7 @@ class Micromodem(object):
 
                 msg = {'type':'CCMSC', 'params':[self.id, self.id, sleep_arg, hibernate_delay_secs]}
                 self.write_nmea(msg)
-                return
+                return None
 
         else:  # API level 10 and higher (uM2)
             # Make a CCHIB command.
@@ -583,7 +593,20 @@ class Micromodem(object):
 
             msg = {'type':'CCHIB', 'params':[hibernate_mode, hibernate_time, wake_mode, wake_time]}
             self.write_nmea(msg)
-            return
+
+            if not ignore_response:
+                response = self.wait_for_nmea_type("CAHIB", timeout=self.default_nmea_timeout)
+                if response is None:
+                    return None
+                # parse the response.
+                ret = namedtuple("CAHIB", ["hibernate_cause", "hibernate_time", "wake_cause", "wake_time"])
+                ret.hibernate_cause = int(response['params'][0])
+                ret.hibernate_time = timeutil.convert_to_datetime(response['params'][1])
+                ret.wake_cause = int(response['params'][2])
+                ret.wake_time = timeutil.convert_to_datetime(response['params'][3])
+                return ret
+
+            return None
 
         
     def set_host_clock_from_modem(self):
@@ -592,7 +615,7 @@ class Micromodem(object):
         self.write_nmea(msg)
         # The actual clock setting is done by the CACLQ parser when the flag is true.
 
-    def set_time(self, time_to_set=None, mode=None, response_timeout=None, extpps_drive_fxn=None):
+    def set_time(self, time_to_set=None, mode=None, ignore_response=False, extpps_drive_fxn=None):
         ''' Set the modem clock to the specified time (or the current time of the host system if time_to_set is not
          specified.
          Requires that the modem support the $CCTMS command.
@@ -620,15 +643,17 @@ class Micromodem(object):
             extpps_drive_fxn()
 
         # If timeout is not None, check the response.
-        if response_timeout is not None:
-            response = self.wait_for_nmea_type('CATMS', response_timeout)
+        if not ignore_response:
+            # CCTMS may take up to 3 seconds to time out in mode 1.
+            response = self.wait_for_nmea_type('CATMS', timeout=4)
             if response is None:
                 # We timed out... this could be an error condition
                 return None
             # Return the argumenst of the CATMS command, more or less...
-            catms_time = timeutil.convert_to_datetime(response['params'][1])
-            timed_out = not bool(response['params'][0])
-            return (timed_out, catms_time)
+            ret = namedtuple("CATMS", ["time", "timed_out"])
+            ret.time = timeutil.convert_to_datetime(response['params'][1])
+            ret.timed_out = not bool(response['params'][0])
+            return ret
         else:
             return None
 
@@ -732,7 +757,8 @@ class Micromodem(object):
                         if len(new_msg['params']) != len(params):
                             continue
                         for (n, p) in zip(new_msg['params'], params):
-                            if n != p:
+                            # make sure that any non-None parameter matches.
+                            if p and (n != p):
                                 continue
 
                     matching_msg = new_msg
@@ -787,7 +813,7 @@ class Message(dict):
         if len(msg) == 2:
             msg, chksum = msg
             correctChksum = nmeaChecksum( msg )
-            if (chksum != correctChksum ):
+            if chksum and (chksum != correctChksum ):
                 raise ChecksumException("Checksum Error. Rec'd: %s, Exp'd: %s\n" % (chksum, correctChksum) )
         else:
             msg = msg[0]
