@@ -2,7 +2,6 @@
 import os
 from time import sleep, time
 from datetime import datetime
-from django.db.backends.dummy.base import ignore
 import timeutil
 import re
 from Queue import Empty, Full
@@ -135,11 +134,11 @@ class Micromodem(object):
         msg = {'type': "CCALQ", 'params': [0]}
         self.write_nmea(msg)
 
-        response = self.wait_for_nmea_types(['CAALQ', 'CAERR'], 0.5)
+        response = self.wait_for_nmea_type('CAALQ', timeout=5)
 
         if response:
             if response['type'] == 'CAALQ':
-                api_level = int(response['params'][0])
+                api_level = int(response['params'][1])
             else:
                 api_level = 0
         else:
@@ -624,10 +623,7 @@ class Micromodem(object):
             mode = 0
 
         # Generate the command
-        cmd = Message()
-        cmd['type'] = "CCTMS"
-        cmd['params'][0] = timeutil.to_utc_iso8601(time_to_set, True)
-        cmd['params'][1] = mode
+        cmd = {'type': "CCTMS", 'params':[timeutil.to_utc_iso8601(time_to_set, True), mode]}
         # Send it.
         self.write_nmea(cmd)
 

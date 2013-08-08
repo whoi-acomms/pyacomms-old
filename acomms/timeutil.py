@@ -13,8 +13,10 @@ def convert_to_datetime(object_to_convert):
         try:
             as_datetime = datetime.utcfromtimestamp(int(object_to_convert))
         except ValueError:
-            # If it can't be an int, try to parse it as a string.
+            # If it can't be an int, try to parse it as a string.  Blank strings return None
             try:
+                if object_to_convert == "":
+                    return None
                 as_datetime = isodate.parse_datetime(object_to_convert)
             except ValueError:
                 raise(ValueError("Unable to parse object into a datetime"))
