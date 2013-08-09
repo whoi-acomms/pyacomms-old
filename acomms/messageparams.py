@@ -87,5 +87,8 @@ Rates = {0:PacketRate('FH-FSK', 0, 32, 1),
          5:PacketRate('Hamming 14:9', 5, 256, 8),
          6:PacketRate('DSS 1/15 (32B frames)', 6, 32, 6)}
 
+FDPRates = {1:PacketRate('BCH 128:8', 1, 100, 1),
+            3:PacketRate('BCH 64:10', 3, 100, 1)}
+
 
     

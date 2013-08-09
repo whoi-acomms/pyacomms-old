@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 from time import sleep, time
-from datetime import datetime
+from datetime import datetime, date
 import timeutil
 import re
 from Queue import Empty, Full
@@ -15,7 +15,7 @@ from serial import Serial
 
 import commstate
 from messageparser import MessageParser
-from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame
+from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame,FDPRates
 from acomms.modem_connections import SerialConnection
 from unifiedlog import UnifiedLog
 
@@ -454,7 +454,17 @@ class Micromodem(object):
         msg = {'type':'CCMPC', 'params':[self.id, dest_id]}
         
         self.write_nmea(msg)
-        
+
+    def send_tdp(self, dest_id=None,databytes=[], rate_num=None, ack=False):
+        rate = FDPRates[rate_num]
+        ack = int(ack)
+        # For now, truncate the data to fit in this packet
+        databytes=bytearray(range(0,rate.maxpacketsize,1))
+        # Build the CCTDP message
+        msg = {'type':'CCTDP', 'params':[dest_id, rate_num,ack,hexstring_from_data(databytes)]}
+
+        self.write_nmea(msg)
+
     def send_sweep(self, direction):
         '''This will send a sweep using the CCRSP command.'''
         # try to guess what was meant by the direction
