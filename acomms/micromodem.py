@@ -17,6 +17,7 @@ import commstate
 from messageparser import MessageParser
 from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame,FDPRates
 from acomms.modem_connections import SerialConnection
+from acomms.modem_connections import IridiumConnection
 from unifiedlog import UnifiedLog
 
 
@@ -113,6 +114,13 @@ class Micromodem(object):
     def connect_serial(self, port, baudrate=19200):
         self.connection = SerialConnection(self, port, baudrate)
         self._daemon_log.info("Connected to {0} ({1} bps)".format(port, baudrate))
+        sleep(0.05)
+        self.query_modem_info()
+        self.query_nmea_api_level()
+
+    def connect_iridium(self, number, port, baudrate=19200):
+        self.connection = IridiumConnection(modem = self, port=port, baudrate=baudrate,number=number)
+        self._daemon_log.info("Connected to Iridium #:{0} on Serial {1}({2} bps)".format(number,port, baudrate))
         sleep(0.05)
         self.query_modem_info()
         self.query_nmea_api_level()

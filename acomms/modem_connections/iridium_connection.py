@@ -87,16 +87,21 @@ class IridiumConnection(SerialConnection):
             self.state = "DISCONNECTED"
 
         if msg is not "":
-            self.modem.nmealog.info("$IRIDIUM,{0},{1}".format(self.modem.name, msg.strip()))
+            self.modem._daemon_log.info("$IRIDIUM,{0},{1}".format(self.modem.name, msg.strip()))
 
 
     def do_dial(self):
         #881676330186 is Buoy 3
         # Toggle DTR
-        print("Iridium> Dialing...")
+        self.modem._daemon_log.info("$IRIDIUM,{0},Dialing {1}".format(self.modem.name, self.number))
         sleep(2)
         self.modem.setDTR(False)
         sleep(0.05)
         self.modem.setDTR(True)
         self.modem.write("ATD{0}\r\n".format(self.number))
         self.state = "DIALING"
+
+    def close(self):
+        self.modem.setDTR(False)
+        sleep(0.05)
+        self._serialport.close()
