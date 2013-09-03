@@ -47,7 +47,7 @@ class IridiumConnection(SerialConnection):
         while True:
             if self._serialport.isOpen():
                 msg = self.raw_readline()
-                if not self.getCD():
+                if not self._serialport.getCD():
                     # Not connected via Iridium
                     # Processing I/O with Iridium dialer.
                     self.process_io(msg)
@@ -111,13 +111,13 @@ class IridiumConnection(SerialConnection):
         # Toggle DTR
         self.modem._daemon_log.info("$IRIDIUM,{0},Dialing {1}".format(self.modem.name, self.number))
         sleep(2)
-        self.modem.setDTR(False)
+        self._serialport.setDTR(False)
         sleep(0.05)
-        self.modem.setDTR(True)
-        self.modem.write("ATD{0}\r\n".format(self.number))
+        self._serialport.setDTR(True)
+        self._serialport.write("ATD{0}\r\n".format(self.number))
         self.state = "DIALING"
 
     def close(self):
-        self.modem.setDTR(False)
+        self._serialport.setDTR(False)
         sleep(0.05)
         self._serialport.close()
