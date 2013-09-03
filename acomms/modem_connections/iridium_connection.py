@@ -89,6 +89,22 @@ class IridiumConnection(SerialConnection):
         if msg is not "":
             self.modem._daemon_log.info("$IRIDIUM,{0},{1}".format(self.modem.name, msg.strip()))
 
+    def raw_readline(self):
+        """Returns a \n terminated line from the modem.  Only returns complete lines (or None on timeout)"""
+        rl = self._serialport.readline()
+
+        if rl == "":
+            return None
+
+        # Make sure we got a complete line.  Serial.readline may return data on timeout.
+        if rl[-1] != '\n':
+            self._incoming_line_buffer += rl
+            return None
+        else:
+            if self._incoming_line_buffer != "":
+                rl = self._incoming_line_buffer + rl
+            self._incoming_line_buffer = ""
+            return rl			
 
     def do_dial(self):
         #881676330186 is Buoy 3
