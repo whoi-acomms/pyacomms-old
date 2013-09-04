@@ -88,6 +88,7 @@ class IridiumConnection(SerialConnection):
 
         if msg is not "":
             self.modem._daemon_log.info("$IRIDIUM,{0},{1}".format(self.modem.name, msg.strip()))
+        self.modem._daemon_log.debug("$IRIDIUM,{0},Current State:{1}".format(self.modem.name, self.state))
 
     def raw_readline(self):
         """Returns a \n terminated line from the modem.  Only returns complete lines (or None on timeout)"""
@@ -112,12 +113,12 @@ class IridiumConnection(SerialConnection):
         self.modem._daemon_log.info("$IRIDIUM,{0},Dialing {1}".format(self.modem.name, self.number))
         sleep(2)
         self._serialport.setDTR(False)
-        sleep(0.05)
+        sleep(0.1)
         self._serialport.setDTR(True)
         self._serialport.write("ATD{0}\r\n".format(self.number))
         self.state = "DIALING"
 
     def close(self):
         self._serialport.setDTR(False)
-        sleep(0.05)
+        sleep(0.2)
         self._serialport.close()
