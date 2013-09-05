@@ -121,7 +121,7 @@ class Micromodem(object):
     def connect_iridium(self, number, port, baudrate=19200):
         self.connection = IridiumConnection(modem = self, port=port, baudrate=baudrate,number=number)
         self._daemon_log.info("Connected to Iridium #:{0} on Serial {1}({2} bps)".format(number,port, baudrate))
-        sleep(0.05)
+        sleep(5)
         self.query_modem_info()
         self.query_nmea_api_level()
 
