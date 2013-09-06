@@ -463,13 +463,14 @@ class Micromodem(object):
         
         self.write_nmea(msg)
 
-    def send_tdp(self, dest_id=None,databytes=[], rate_num=None, ack=False):
+    def send_tdp(self, dest_id=None,databytes=[], rate_num=None, ack=False,base64data=False):
         rate = FDPRates[rate_num]
         ack = int(ack)
         # For now, truncate the data to fit in this packet
-        databytes=bytearray(range(0,rate.maxpacketsize,1))
+        #databytes=bytearray(range(0,rate.maxpacketsize,1))
+        databytes=bytearray(range(0,8,1))
         # Build the CCTDP message
-        msg = {'type':'CCTDP', 'params':[dest_id, rate_num,ack,hexstring_from_data(databytes)]}
+        msg = {'type':'CCTDP', 'params':[dest_id, rate_num,ack,base64data,hexstring_from_data(databytes)]}
 
         self.write_nmea(msg)
 
