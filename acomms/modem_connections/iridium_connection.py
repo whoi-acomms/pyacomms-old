@@ -55,6 +55,8 @@ class IridiumConnection(SerialConnection):
                     # We are connected, so pass through to NMEA
                     self.modem._process_incoming_nmea(msg)
                     self.modem._process_outgoing_nmea()
+                    #Send keep alive \r\n so iridium does think the connection is empty.
+                    self._serialport.write("\r\n")
             else:  # not connected
                 sleep(0.5) # Wait half a second, try again.
 
