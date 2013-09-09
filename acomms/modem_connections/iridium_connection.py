@@ -105,10 +105,9 @@ class IridiumConnection(SerialConnection):
             if self._incoming_line_buffer != "":
                 rl = self._incoming_line_buffer + rl
             self._incoming_line_buffer = ""
-            return rl			
+            return rl
 
     def do_dial(self):
-        #881676330186 is Buoy 3
         # Toggle DTR
         self.modem._daemon_log.info("$IRIDIUM,{0},Dialing {1}".format(self.modem.name, self.number))
         sleep(2)
