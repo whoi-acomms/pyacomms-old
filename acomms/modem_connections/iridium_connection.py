@@ -123,3 +123,7 @@ class IridiumConnection(SerialConnection):
         self._serialport.setDTR(False)
         sleep(0.2)
         self._serialport.close()
+
+    def wait_for_connect(self):
+        while self.state != "CONNECTED":
+            sleep(1)
