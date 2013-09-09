@@ -503,7 +503,15 @@ class Micromodem(object):
         else:
             return {str(name), str(value)}
 
-        
+
+    def send_passthrough(self,msg):
+        #Truncate our message to 48 characters
+        info = data[:46] + (data[46:] and '..')
+	    # Build a CCRSP message
+        msg = {'type':'CCPAS', 'params':[info]}
+
+        self.um.write_nmea(msg)		
+			
     def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False, ignore_response=False):
         ''' Start hibernating this modem.  This function will attempt to adapt to the limited capabilities of older
             (uM1) hardware.

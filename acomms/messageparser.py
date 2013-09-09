@@ -1,5 +1,6 @@
 from messageparams import CycleInfo, DrqParams, DataFrame, data_from_hexstring, hexstring_from_data
 from cyclestats import CycleStats
+from timeutil import *
 import commstate
 from binascii import hexlify, unhexlify
 import datetime
@@ -178,3 +179,59 @@ class MessageParser:
 
     def CABDD(self, msg):
         pass
+
+    def CATDP(self,msg):
+        errflag = int(msg["params"][1])
+        uniqueID = int(msg["params"][2])
+        dest = int(msg["params"][3])
+        rate = int(msg["params"][4])
+        ack = int(msg["params"][5]) == 1
+        reserved = int(msg["params"][6])
+
+        mfdata = msg(["params"][7])
+
+        dfdata = msg(["params"][8])
+
+        pass
+
+    def CARDP(self,msg):
+        src = int(msg["params"][1])
+        dest = int(msg["params"][2])
+        rate = int(msg["params"][3])
+        ack = int(msg["params"][4]) == 1
+        reserved = int(msg["params"][5])
+
+        mfdata = msg(["params"][6])
+
+        dfdata = msg(["params"][7])
+
+
+        pass
+
+    def CAFDR(self,msg):
+        src = int(msg["params"][1])
+        dest = int(msg["params"][2])
+        rate = int(msg["params"][3])
+        ack = int(msg["params"][4]) == 1
+        nbytes  = int(msg["params"][5])
+
+        pass
+
+    def CATMG(self,msg):
+        dt = convert_to_datetime(msg["params"][1])
+        clksrc = msg["params"][2]
+        pps_source = msg["params"][3]
+
+        self.modem._daemon_log.info("Modem Date and Time Message:{0}\tClock Source:{1}\tPPS Source:{2}".format(dt,clksrc.replace('_',' '),pps_source.replace('_',' ')))
+
+    def CATMQ(self,msg):
+        dt = convert_to_datetime(msg["params"][1])
+        clksrc = msg["params"][2]
+        pps_source = msg["params"][3]
+
+        self.modem._daemon_log.info("Modem Date and Time Query Response:{0}\tClock Source:{1}\tPPS Source:{2}".format(dt,clksrc.replace('_',' '),pps_source.replace('_',' ')))
+
+    def CAPAS(self,msg):
+        passthrough_msg = msg["params"][1]
+
+        self.modem._daemon_log.info("Pass Through Message Received: {0}".format(passthrough_msg))
