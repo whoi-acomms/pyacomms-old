@@ -10,6 +10,7 @@ import logging
 import struct
 import timer2
 from collections import namedtuple
+from bitstring import BitArray
 
 from serial import Serial
 
@@ -820,6 +821,28 @@ class Micromodem(object):
 
         return matching_msg
 
+
+    def request_log(self, all_or_newest=1, order=1, num_to_retrieve=0, filter_params=[]):
+        filtr = BitArray(hex='0x00')
+        if 'Modem To Host' in filter_params:
+            filtr.set(1,1)
+        if 'Host to Modem' in filter_params:
+            filtr.set(1,2)
+        if 'CARXD' in filter_params:
+            filtr.set(1,3)
+        if 'CACST' in filter_params:
+            filtr.set(1,4)
+        if 'CAXST' in filter_params:
+            filtr.set(1,5)
+
+        params = [1,all_or_newest, order,num_to_retrieve,filtr.uint]
+
+        # Build the CCRBR message
+        msg = {'type':'CCRBR', 'params': params}
+        #Not this waits for a response of
+        self.write_nmea(msg)
+
+        response = self.wait_for_nmea_type('CARBR', timeout=None, params=[1,0,'','',''])
 
 class Message(dict):
     def __init__(self, raw):
