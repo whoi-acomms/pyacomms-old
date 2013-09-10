@@ -10,6 +10,7 @@ from time import sleep
 from serial import Serial
 
 from acomms.modem_connections.serial_connection import SerialConnection
+from Queue import Empty
 
 
 class IridiumConnection(SerialConnection):
@@ -42,15 +43,23 @@ class IridiumConnection(SerialConnection):
         self.number = str(number)
         self.counter = 0
 
+    @property
+    def is_connected(self):
+        return self._serialport.getCD()
 
     def _listen(self):
         while True:
             if self._serialport.isOpen():
-                msg = self.raw_readline()
+                msg = self.readline()
                 if not self._serialport.getCD():
                     # Not connected via Iridium
                     # Processing I/O with Iridium dialer.
                     self.process_io(msg)
+                    #Dump all data to the modem
+                    try:
+                        self.modem.serial_tx_queue.get_nowait()
+                    except Empty:
+                        pass
                 else:
                     # We are connected, so pass through to NMEA
                     self.modem._process_incoming_nmea(msg)
@@ -91,23 +100,6 @@ class IridiumConnection(SerialConnection):
         if msg is not "":
             self.modem._daemon_log.info("$IRIDIUM,{0},{1}".format(self.modem.name, msg.strip()))
         self.modem._daemon_log.debug("$IRIDIUM,{0},Current State:{1}".format(self.modem.name, self.state))
-
-    def raw_readline(self):
-        """Returns a \n terminated line from the modem.  Only returns complete lines (or None on timeout)"""
-        rl = self._serialport.readline()
-
-        if rl == "":
-            return None
-
-        # Make sure we got a complete line.  Serial.readline may return data on timeout.
-        if rl[-1] != '\n':
-            self._incoming_line_buffer += rl
-            return None
-        else:
-            if self._incoming_line_buffer != "":
-                rl = self._incoming_line_buffer + rl
-            self._incoming_line_buffer = ""
-            return rl
 
     def do_dial(self):
         # Toggle DTR
