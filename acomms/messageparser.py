@@ -212,30 +212,30 @@ class MessageParser:
         pass
 		
     def CAFDR(self,msg):
-        src = int(msg["params"][1])
-        dest = int(msg["params"][2])
-        rate = int(msg["params"][3])
-        ack = int(msg["params"][4]) == 1
-        nbytes  = int(msg["params"][5])
+        src = int(msg["params"][0])
+        dest = int(msg["params"][1])
+        rate = int(msg["params"][2])
+        ack = int(msg["params"][3]) == 1
+        nbytes  = int(msg["params"][4])
 
         pass
 
     def CATMG(self,msg):
-        dt = convert_to_datetime(msg["params"][1])
-        clksrc = msg["params"][2]
-        pps_source = msg["params"][3]
+        dt = convert_to_datetime(msg["params"][0])
+        clksrc = msg["params"][1]
+        pps_source = msg["params"][2]
 
         self.modem._daemon_log.info("Modem Date and Time Message:{0}\tClock Source:{1}\tPPS Source:{2}".format(dt,clksrc.replace('_',' '),pps_source.replace('_',' ')))
 
     def CATMQ(self,msg):
-        dt = convert_to_datetime(msg["params"][1])
-        clksrc = msg["params"][2]
-        pps_source = msg["params"][3]
+        dt = convert_to_datetime(msg["params"][0])
+        clksrc = msg["params"][1]
+        pps_source = msg["params"][2]
 
         self.modem._daemon_log.info("Modem Date and Time Query Response:{0}\tClock Source:{1}\tPPS Source:{2}".format(dt,clksrc.replace('_',' '),pps_source.replace('_',' ')))
 
     def CAPAS(self,msg):
-        passthrough_msg = msg["params"][1]
+        passthrough_msg = msg["params"][0]
 
         self.modem._daemon_log.info("Pass Through Message Received: {0}".format(passthrough_msg))
 
