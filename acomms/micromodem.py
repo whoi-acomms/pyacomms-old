@@ -122,11 +122,8 @@ class Micromodem(object):
     def connect_iridium(self, number, port, baudrate=19200):
         self.connection = IridiumConnection(modem = self, port=port, baudrate=baudrate,number=number)
         self._daemon_log.info("Connected to Iridium #:{0} on Serial {1}({2} bps)".format(number,port, baudrate))
-        #Give the Iridium Time to Connect.
-        while not self.connection.is_connected:
-            sleep(5)
-        self.query_modem_info()
-        self.query_nmea_api_level()
+
+
 
     def disconnect(self):
         if self.connection is not None:
@@ -822,7 +819,7 @@ class Micromodem(object):
         return matching_msg
 
 
-    def request_log(self, all_or_newest=1, order=1, num_to_retrieve=0, filter_params=[]):
+    def request_log(self, all_or_newest=1, order=1, num_to_retrieve=0, filter_params=[],timeout =None):
         filtr = BitArray(hex='0x00')
         if 'Modem To Host' in filter_params:
             filtr.set(1,1)
@@ -842,7 +839,7 @@ class Micromodem(object):
         #Not this waits for a response of
         self.write_nmea(msg)
 
-        response = self.wait_for_nmea_type('CARBR', timeout=None, params=[1,0,'','',''])
+        response = self.wait_for_nmea_type('CARBR', timeout=timeout, params=[1,0,'','',''])
 
 class Message(dict):
     def __init__(self, raw):
