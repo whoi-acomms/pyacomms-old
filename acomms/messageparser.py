@@ -188,9 +188,9 @@ class MessageParser:
         ack = int(msg["params"][5]) == 1
         reserved = int(msg["params"][6])
 
-        mfdata = msg(["params"][7])
+        #mfdata = msg(["params"][7])
 
-        dfdata = msg(["params"][8])
+        #dfdata = msg(["params"][8])
 
         pass
 
@@ -201,13 +201,16 @@ class MessageParser:
         ack = int(msg["params"][4]) == 1
         reserved = int(msg["params"][5])
 
-        mfdata = msg(["params"][6])
+        #mfdata = msg(["params"][6])
 
-        dfdata = msg(["params"][7])
+        #dfdata = msg(["params"][7])
 
 
         pass
 
+    def CAALQ(self,msg):
+        pass
+		
     def CAFDR(self,msg):
         src = int(msg["params"][1])
         dest = int(msg["params"][2])
@@ -235,3 +238,13 @@ class MessageParser:
         passthrough_msg = msg["params"][1]
 
         self.modem._daemon_log.info("Pass Through Message Received: {0}".format(passthrough_msg))
+
+    def CARBR(self,msg):
+        finished = int(msg["params"][0])
+        message_num = int(msg["params"][1])
+        received_dt= convert_to_datetime(msg["params"][2])
+        logged_msg = (msg["params"][3:])
+
+    def CAMIZ(self,msg):
+        pass
+

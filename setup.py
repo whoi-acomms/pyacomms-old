@@ -35,6 +35,7 @@ setup(
         "isodate >= 0.4.9",
         "python-dateutil >= 2.1",
         "timer2 >= 0.1.0",
+        "enum >= 0.4.4",
     ],
     py_modules=['ez_setup'],
     classifiers=[
