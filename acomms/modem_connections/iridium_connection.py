@@ -56,16 +56,16 @@ class IridiumConnection(SerialConnection):
                     # Processing I/O with Iridium dialer.
                     self.process_io(msg)
                     #Dump all data to the modem
-                    try:
-                        self.modem.serial_tx_queue.get_nowait()
-                    except Empty:
-                        pass
+                    #try:
+                    #    self.modem.serial_tx_queue.get_nowait()
+                    #except Empty:
+                    #    pass
                 else:
                     # We are connected, so pass through to NMEA
                     self.modem._process_incoming_nmea(msg)
                     self.modem._process_outgoing_nmea()
                     #Send keep alive \r\n so iridium does think the connection is empty.
-                    self._serialport.write("\r\n")
+                    #self._serialport.write("\r\n")
             else:  # not connected
                 sleep(0.5) # Wait half a second, try again.
 
@@ -86,8 +86,9 @@ class IridiumConnection(SerialConnection):
                 self.state = "DISCONNECTED"
             elif "ERROR" in msg:
                 self.state = "DISCONNECTED"
-            if self.counter > 600: #Counts are about 0.1s
+            if self.counter > 1200: #Counts are about 0.1s
                 self.state = "DISCONNECTED"
+                self.modem._daemon_log.info("$IRIDIUM,{0},Dialing Attempt Timed Out.".format(self.modem.name))
             self.counter += 1
         elif self.state == 'DISCONNECTED':
             self.counter = 0
@@ -108,6 +109,11 @@ class IridiumConnection(SerialConnection):
         self._serialport.setDTR(False)
         sleep(0.1)
         self._serialport.setDTR(True)
+        sleep(0.1)
+        self._serialport.write("AT+CREG?\r\n")
+        sleep(1)
+        self._serialport.write("AT+CSQ?\r\n")
+        sleep(5)
         self._serialport.write("ATD{0}\r\n".format(self.number))
         self.state = "DIALING"
 
