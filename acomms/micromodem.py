@@ -133,7 +133,7 @@ class Micromodem(object):
 
     def query_modem_info(self):
         sleep(0.05)
-        self.get_config_param("ALL")
+        self.get_config_param("SRC")
         sleep(0.05)
         # All of the salient properties on this object are populated automatically by the NMEA config handler.
 
@@ -152,6 +152,11 @@ class Micromodem(object):
                 api_level = 0
         else:
             api_level = 0
+
+        self._api_level = api_level
+        return api_level
+
+    def set_nmea_api_level(self,api_level=11):
 
         self._api_level = api_level
         return api_level
@@ -650,8 +655,9 @@ class Micromodem(object):
         if mode is None:
             mode = 0
 
+
         # Generate the command
-        cmd = {'type': "CCTMS", 'params':[timeutil.to_utc_iso8601(time_to_set, True), mode]}
+        cmd = {'type': "CCTMS", 'params':["{0}Z".format(timeutil.to_utc_iso8601(time_to_set, True)), mode]}
         # Send it.
         self.write_nmea(cmd)
 
@@ -705,20 +711,21 @@ class Micromodem(object):
         
     def detach_incoming_cst_queue(self, queue_to_detach):
         self.incoming_cst_queues.remove(queue_to_detach)    
-        
+
+
     def wait_for_cst(self, timeout=None):
         incoming_cst_queue = Queue()
         self.attach_incoming_cst_queue(incoming_cst_queue)
-                
+
         try:
             cst = incoming_cst_queue.get(block=True, timeout=timeout)
         except Empty:
             cst = None
-        
+
         self.detach_incoming_cst_queue(incoming_cst_queue)
-            
+
         return cst
-    
+
     def attach_incoming_msg_queue(self, queue_to_attach):
         self.incoming_msg_queues.append(queue_to_attach)
         
@@ -820,7 +827,7 @@ class Micromodem(object):
         return matching_msg
 
 
-    def request_log(self, all_or_newest=1, order=1, num_to_retrieve=0, filter_params=[],timeout =None):
+    def request_log(self, all_or_newest=1, order=0, num_to_retrieve=0, filter_params=[],timeout =None):
         filtr = BitArray(hex='0x00')
         if 'Modem To Host' in filter_params:
             filtr.set(1,1)
