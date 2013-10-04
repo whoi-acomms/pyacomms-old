@@ -826,6 +826,9 @@ class Micromodem(object):
 
         return matching_msg
 
+    def set_uplink_data_function(self,func):
+        if hasattr(func, '__call__'):
+            self.get_uplink_data_function = func
 
     def request_log(self, all_or_newest=1, order=0, num_to_retrieve=0, filter_params=[],timeout =None):
         filtr = BitArray(hex='0x00')

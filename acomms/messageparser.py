@@ -199,11 +199,11 @@ class MessageParser:
         dest = int(msg["params"][2])
         rate = int(msg["params"][3])
         ack = int(msg["params"][4]) == 1
-        reserved = int(msg["params"][5])
+        #reserved = int(msg["params"][5])
 
-        #mfdata = msg(["params"][6])
+        mfdata = msg(["params"][5])
 
-        #dfdata = msg(["params"][7])
+        dfdata = msg(["params"][6])
 
 
         pass
