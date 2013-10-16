@@ -69,7 +69,7 @@ class Micromodem(object):
         self.incoming_msg_queues = []
 
         self._api_level = 1
-        self.default_nmea_timeout = 0.2
+        self.default_nmea_timeout = 1
 
         self.id = -1
         self.asd = False
@@ -373,7 +373,20 @@ class Micromodem(object):
                 q.put_nowait(cst)
             except:
                 self._daemon_log.warn("Error appending to incoming CST queue")
-    
+
+    def on_log_msg(self,log,msg):
+        self._daemon_log.debug("Got Logged message")
+
+        for func in self.log_listeners:
+            func(log, msg) # Pass on the Log message.
+
+        # Append this message to all listening queues
+        for q in self.incoming_log_queues:
+            try:
+                q.put_nowait(log)
+            except:
+                self._daemon_log.warn("Error appending to incoming modem log queue")
+
     def send_packet(self, packet):
         # FIXME this is a hack
         self.state.send_packet(packet)
@@ -731,7 +744,13 @@ class Micromodem(object):
         
     def detach_incoming_msg_queue(self, queue_to_detach):
         self.incoming_msg_queues.remove(queue_to_detach)
-        
+
+    def attach_incoming_modem_log_queue(self, queue_to_attach):
+        self.incoming_log_queues.append(queue_to_attach)
+
+    def detach_incoming_modem_log_queue(self, queue_to_detach):
+        self.incoming_log_queues.remove(queue_to_detach)
+
     def wait_for_regex(self, regex_pattern, timeout=None):
         incoming_msg_queue = Queue()
         self.attach_incoming_msg_queue(incoming_msg_queue)
@@ -830,7 +849,7 @@ class Micromodem(object):
         if hasattr(func, '__call__'):
             self.get_uplink_data_function = func
 
-    def request_log(self, all_or_newest=1, order=0, num_to_retrieve=0, filter_params=[],timeout =None):
+    def request_modem_log(self, all_or_newest=1, order=0, num_to_retrieve=0, filter_params=[],timeout =None):
         filtr = BitArray(hex='0x00')
         if 'Modem To Host' in filter_params:
             filtr.set(1,1)

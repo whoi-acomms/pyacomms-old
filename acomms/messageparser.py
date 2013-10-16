@@ -1,5 +1,6 @@
 from messageparams import CycleInfo, DrqParams, DataFrame, data_from_hexstring, hexstring_from_data
 from cyclestats import CycleStats
+from modemlog import ModemLog
 from timeutil import *
 import commstate
 from binascii import hexlify, unhexlify
@@ -188,8 +189,8 @@ class MessageParser:
         ack = int(msg["params"][5]) == 1
         reserved = int(msg["params"][6])
 
-        #mfdata = (msg(["params"][7])).split(';')
-        #dfdata = (msg(["params"][8])).split(';')
+        mfdata = (msg(["params"][7])).split(';')
+        dfdata = (msg(["params"][8])).split(';')
 
 
 
@@ -200,15 +201,15 @@ class MessageParser:
         ack = int(msg["params"][4]) == 1
         reserved = int(msg["params"][5])
 
-        #mfdata = (msg(["params"][6])).split(';')
-        #mf_crc_check = mfdata[0]
-        #mf_nbytes = mfdata[1]
-        #mf_data = data_from_hexstring(mfdata[2])
+        mfdata = (msg(["params"][6])).split(';')
+        mf_crc_check = mfdata[0]
+        mf_nbytes = mfdata[1]
+        mf_data = data_from_hexstring(mfdata[2])
 
-        #dfdata = (msg(["params"][7])).split(';')
-        #df_crc_check = dfdata[0]
-        #df_nbytes = dfdata[1]
-        #df_data = data_from_hexstring(dfdata[2])
+        dfdata = (msg(["params"][7])).split(';')
+        df_crc_check = dfdata[0]
+        df_nbytes = dfdata[1]
+        df_data = data_from_hexstring(dfdata[2])
 
 
     def CAALQ(self,msg):
@@ -264,13 +265,22 @@ class MessageParser:
         self.modem._daemon_log.info("Modem Set Clock Response: Timed Out:{0} Time Set To:{1}".format(timed_out,dt))
 
     def CARBS(self,msg):
-        pass
+        try:
+            log = ModemLog.from_nmea_msg(msg)
+
+            # Raise the event
+            self.modem.on_modem_log(log, msg)
+        except Exception, ex:
+            self.modem._daemon_log.error("Error parsing Retrieved Modem Log Message: " + str(sys.exc_info()[0]))
 
     def CARBR(self,msg):
-        finished = int(msg["params"][0])
-        message_num = int(msg["params"][1])
-        received_dt= convert_to_datetime(msg["params"][2])
-        logged_msg = (msg["params"][3:])
+        try:
+            log = ModemLog.from_nmea_msg(msg)
+
+            # Raise the event
+            self.modem.on_modem_log(log, msg)
+        except Exception, ex:
+            self.modem._daemon_log.error("Error parsing Retrieved Modem Log Message: " + str(sys.exc_info()[0]))
 
     def CAMIZ(self,msg):
         pass
