@@ -188,28 +188,34 @@ class MessageParser:
         ack = int(msg["params"][5]) == 1
         reserved = int(msg["params"][6])
 
-        #mfdata = msg(["params"][7])
+        #mfdata = (msg(["params"][7])).split(';')
+        #dfdata = (msg(["params"][8])).split(';')
 
-        #dfdata = msg(["params"][8])
 
-        pass
 
     def CARDP(self,msg):
         src = int(msg["params"][1])
         dest = int(msg["params"][2])
         rate = int(msg["params"][3])
         ack = int(msg["params"][4]) == 1
-        #reserved = int(msg["params"][5])
+        reserved = int(msg["params"][5])
 
-        mfdata = msg(["params"][5])
+        #mfdata = (msg(["params"][6])).split(';')
+        #mf_crc_check = mfdata[0]
+        #mf_nbytes = mfdata[1]
+        #mf_data = data_from_hexstring(mfdata[2])
 
-        dfdata = msg(["params"][6])
+        #dfdata = (msg(["params"][7])).split(';')
+        #df_crc_check = dfdata[0]
+        #df_nbytes = dfdata[1]
+        #df_data = data_from_hexstring(dfdata[2])
 
-
-        pass
 
     def CAALQ(self,msg):
-        pass
+        app_name = msg["params"][0]
+        nmea_api_level = int(msg["params"][1])
+        self.modem._daemon_log.info("Modem API Information: Application Name: {0} API Level: {1}".format(app_name,nmea_api_level))
+
 		
     def CAFDR(self,msg):
         src = int(msg["params"][0])
@@ -218,7 +224,6 @@ class MessageParser:
         ack = int(msg["params"][3]) == 1
         nbytes  = int(msg["params"][4])
 
-        pass
 
     def CATMG(self,msg):
         dt = convert_to_datetime(msg["params"][0])
@@ -238,6 +243,28 @@ class MessageParser:
         passthrough_msg = msg["params"][0]
 
         self.modem._daemon_log.info("Pass Through Message Received: {0}".format(passthrough_msg))
+
+    def CAHIB(self,msg):
+        hibernate_cause = int(msg["params"][0])
+        hibernate_time = convert_to_datetime(msg["params"][1])
+        wake_cause = int(msg["params"][2])
+        wake_time = convert_to_datetime(msg["params"][3])
+        self.modem._daemon_log.info("Modem Hibernate Ack: Hibernate({0},{1}), Wake({2},{3})".format(hibernate_cause,hibernate_time,wake_cause,wake_time))
+        pass
+
+    def CAHBR(self,msg):
+        wake_time = convert_to_datetime(msg["params"][0])
+        self.modem._daemon_log.info("Modem Hibernate Start: Wake@{0}".format(wake_time))
+
+    def CATMS(self,msg):
+        dt = None
+        timed_out = int(msg["params"][0])
+        if timed_out == 0:
+            dt = convert_to_datetime(msg["params"][1])
+        self.modem._daemon_log.info("Modem Set Clock Response: Timed Out:{0} Time Set To:{1}".format(timed_out,dt))
+
+    def CARBS(self,msg):
+        pass
 
     def CARBR(self,msg):
         finished = int(msg["params"][0])
