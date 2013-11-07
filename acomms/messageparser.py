@@ -182,34 +182,27 @@ class MessageParser:
         pass
 
     def CATDP(self,msg):
-        errflag = int(msg["params"][1])
-        uniqueID = int(msg["params"][2])
-        dest = int(msg["params"][3])
-        rate = int(msg["params"][4])
-        ack = int(msg["params"][5]) == 1
-        reserved = int(msg["params"][6])
-
-        mfdata = (msg(["params"][7])).split(';')
-        dfdata = (msg(["params"][8])).split(';')
-
-
-
-    def CARDP(self,msg):
-        src = int(msg["params"][1])
+        errflag = int(msg["params"][0])
+        uniqueID = int(msg["params"][1])
         dest = int(msg["params"][2])
         rate = int(msg["params"][3])
         ack = int(msg["params"][4]) == 1
         reserved = int(msg["params"][5])
 
-        mfdata = (msg(["params"][6])).split(';')
-        mf_crc_check = mfdata[0]
-        mf_nbytes = mfdata[1]
-        mf_data = data_from_hexstring(mfdata[2])
+        #mfdata = msg["params"][6]
+        #dfdata = msg["params"][7]
 
-        dfdata = (msg(["params"][7])).split(';')
-        df_crc_check = dfdata[0]
-        df_nbytes = dfdata[1]
-        df_data = data_from_hexstring(dfdata[2])
+
+
+    def CARDP(self,msg):
+        src = int(msg["params"][0])
+        dest = int(msg["params"][1])
+        rate = int(msg["params"][2])
+        ack = int(msg["params"][3]) == 1
+        reserved = int(msg["params"][4])
+
+        #mfdata = msg["params"][5]
+        #dfdata = msg["params"][6]
 
 
     def CAALQ(self,msg):
@@ -260,27 +253,30 @@ class MessageParser:
     def CATMS(self,msg):
         dt = None
         timed_out = int(msg["params"][0])
-        if timed_out == 0:
-            dt = convert_to_datetime(msg["params"][1])
+        #if timed_out == 0:
+        #    dt = convert_to_datetime(msg["params"][1])
+        dt = msg["params"][1]
         self.modem._daemon_log.info("Modem Set Clock Response: Timed Out:{0} Time Set To:{1}".format(timed_out,dt))
 
     def CARBS(self,msg):
-        try:
-            log = ModemLog.from_nmea_msg(msg)
+        pass
+        #try:
+        #    log = ModemLog.from_nmea_msg(msg)
 
             # Raise the event
-            self.modem.on_modem_log(log, msg)
-        except Exception, ex:
-            self.modem._daemon_log.error("Error parsing Retrieved Modem Log Message: " + str(sys.exc_info()[0]))
+        #    self.modem.on_modem_log(log, msg)
+        #except Exception, ex:
+        #    self.modem._daemon_log.error("Error parsing Retrieved Modem Log Message: " + str(sys.exc_info()[0]))
 
     def CARBR(self,msg):
-        try:
-            log = ModemLog.from_nmea_msg(msg)
+        pass
+        #try:
+        #    log = ModemLog.from_nmea_msg(msg)
 
             # Raise the event
-            self.modem.on_modem_log(log, msg)
-        except Exception, ex:
-            self.modem._daemon_log.error("Error parsing Retrieved Modem Log Message: " + str(sys.exc_info()[0]))
+        #    self.modem.on_modem_log(log, msg)
+        #except Exception, ex:
+        #    self.modem._daemon_log.error("Error parsing Retrieved Modem Log Message: " + str(sys.exc_info()[0]))
 
     def CAMIZ(self,msg):
         pass
