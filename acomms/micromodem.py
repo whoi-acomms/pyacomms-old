@@ -687,7 +687,7 @@ class Micromodem(object):
                 return None
             # Return the argumenst of the CATMS command, more or less...
             CATMS = namedtuple("CATMS", ["time", "timed_out"])
-            ret = CATMS(time= timeutil.convert_to_datetime(response['params'][1]), timed_out = not bool(response['params'][0]))
+            ret = CATMS(time= timeutil.convert_to_datetime(response['params'][1]), timed_out = response['params'][0])
             return ret
         else:
             return None
