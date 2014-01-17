@@ -11,7 +11,7 @@ from time import sleep
 import imaplib
 import datetime
 
-class SBDConnection(object):
+class SBDEmailConnection(object):
     def __init__(self, modem, IMEI,
                  email_account='acomms-support@whoi.edu',
                  username = None,pw = None,
