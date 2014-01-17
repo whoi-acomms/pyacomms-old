@@ -11,7 +11,8 @@ import struct
 import timer2
 from collections import namedtuple
 from bitstring import BitArray
-
+import hashlib
+from binascii import hexlify
 from serial import Serial
 
 import commstate
@@ -522,6 +523,57 @@ class Micromodem(object):
         else:
             return {str(name), str(value)}
 
+    def change_gpio(self, pin, value, toogle = False, duration=0):
+        if pin == 1:
+            MECValue = 5
+        elif pin == 2:
+            MECValue =  6
+        elif pin == 3:
+            MECValue = 3
+        elif pin == 4:
+            MECValue = 2
+        elif pin == 5:
+            MECValue = 4
+        else:
+            MECValue = 5
+        if not toggle:
+            if value == 0:
+                mode = 1
+                arg = 0
+            if value == 1:
+                mode = 1
+                arg = 1
+            if value == -1:
+                mode = 0
+                arg = 0
+        else:
+            if duration < .5:
+                arg = 0
+            elif duration > .5 and duration < 1:
+                arg = 1
+            elif duration >= 1 and duration < 2:
+                arg = 2
+            elif duration >= 2 and duration < 6:
+                arg = 3
+            elif duration >= 6 and duration < 10:
+                arg = 4
+            elif duration >= 10 and duration < 20:
+                arg = 5
+            elif duration >= 20 and duration < 30:
+                arg = 6
+            elif duration >= 30:
+                arg = 7                
+            if value == 0:
+                mode = 3
+            else:
+                mode = 3
+                
+        config = self.micromodem.get_config("SRC")
+        message = "$CCMEC,{0},{0},{1},{2}".format(config["SRC"],MECValue,mode,arg)
+        self.write_nmea(message)
+        if value == -1:
+            response = self.wait_for_nmea_type("CAMEC", timeout=self.default_nmea_timeout)
+            return int(response['params'][4])
 
     def send_passthrough(self,msg):
         #Truncate our message to 48 characters
@@ -530,6 +582,7 @@ class Micromodem(object):
         msg = {'type':'CCPAS', 'params':[info]}
 
         self.um.write_nmea(msg)		
+        
 			
     def start_hibernate(self, wake_at=None, wake_in=None, hibernate_at=None, hibernate_in=None, disable_schedule=False, ignore_response=False):
         ''' Start hibernating this modem.  This function will attempt to adapt to the limited capabilities of older
