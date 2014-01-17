@@ -25,6 +25,16 @@ class SerialConnection(object):
     def is_connected(self):
         return self._serialport.isOpen()
 
+    @property
+    def can_change_baudrate(self):
+        return True
+
+    def change_baudrate(self,baudrate):
+        self.baudrate = baudrate
+        self._serialport.baudrate = baudrate
+        return baudrate
+
+
     def close(self):
         self._serialport.close()
 

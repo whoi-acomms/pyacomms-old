@@ -47,6 +47,14 @@ class IridiumConnection(SerialConnection):
     def is_connected(self):
         return self._serialport.getCD()
 
+    @property
+    def can_change_baudrate(self):
+        return True
+
+    def change_baudrate(self,baudrate):
+        return self.baudrate
+
+
     def _listen(self):
         while True:
             if self._serialport.isOpen():
