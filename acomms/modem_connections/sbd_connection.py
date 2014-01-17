@@ -29,7 +29,7 @@ class SBDEmailConnection(object):
         self.email_outgoing_svr = smtp_svr
         self.email_outgoing_port = smtp_port
         self.email_incoming_port = imap_port
-        self.last_read = datetime.date.now()
+        self.last_read = datetime.datetime.now()
         self.Alive = True
         self._threadL = Thread(target=self._listen)
         self._threadL.setDaemon(True)
@@ -57,10 +57,10 @@ class SBDEmailConnection(object):
 
     def _listen(self):
         while self.Alive:
-            date = (datetime.date.now() - datetime.timedelta(1)).strftime("%d-%b-%Y")
+            date = (datetime.datetime.now() - datetime.timedelta(1)).strftime("%d-%b-%Y")
             M = imaplib.IMAP4(self.email_incoming_svr, self.email_incoming_port)
             if self.email_username is not None:
-                response, details = M.login(self.email_userpw, self.email_userpw)
+                response, details = M.login(self.email_username, self.email_userpw)
             M.select('INBOX')
             #Limit our search to Unseen Messages for our IMEI in the Past 24 Hours from Iridium Only
             response, items = M.search(None,

@@ -138,7 +138,7 @@ class Micromodem(object):
                                              check_rate_min=check_rate_sec / 60,
                                              imap_srv = imap_srv,imap_port=imap_port,
                                              smtp_svr=smtp_svr, smtp_port=smtp_port)
-        self._daemon_log.info("Using Email Based SBD Connection (IMEI#: {0} Address: {1] IMAP Server: {2}:{3} SMTP Server: {4}:{5} Checking Every {6} Minutes)".format(
+        self._daemon_log.info("Using Email Based SBD Connection (IMEI#: {0} Address: {1} IMAP Server: {2}:{3} SMTP Server: {4}:{5} Checking Every {6} Minutes)".format(
             IMEI, email_account,imap_srv,imap_port,smtp_svr,smtp_port, check_rate_sec / 60))
 
     def disconnect(self):
@@ -768,10 +768,7 @@ class Micromodem(object):
         if self._api_level < 11:
             raise(UnavailableInApiLevelError("This API level doesn't support the enhanced time-query functionality.  Use the $CCCLQ command manually."))
 
-        cmd = Message()
-        cmd['type'] = "CCTMQ"
-        cmd['params'][0] = 0
-        self.write_nmea(cmd)
+        self.write_nmea("$CCTMQ,0")
 
         response = self.wait_for_nmea_type("CATMQ", timeout=timeout)
         if response is None:
