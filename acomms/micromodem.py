@@ -20,6 +20,7 @@ from messageparser import MessageParser
 from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame,FDPRates
 from acomms.modem_connections import SerialConnection
 from acomms.modem_connections import IridiumConnection
+from acomms.modem_connections import SBDEmailConnection
 from unifiedlog import UnifiedLog
 
 
@@ -125,7 +126,20 @@ class Micromodem(object):
         self.connection = IridiumConnection(modem = self, port=port, baudrate=baudrate,number=number)
         self._daemon_log.info("Connected to Iridium #:{0} on Serial {1}({2} bps)".format(number,port, baudrate))
 
-
+    def connect_sbd_email(self, IMEI, email_account='acomms-support@whoi.edu',
+                 username = None,pw = None,
+                 check_rate_sec = 30,
+                 imap_srv = "imap.whoi.edu", imap_port = 143,
+                 smtp_svr = "outbox.whoi.edu", smtp_port = 25):
+        self.connection = SBDEmailConnection(modem=self,
+                                             IMEI=IMEI,
+                                             email_account=email_account,
+                                             username=username, pw=pw,
+                                             check_rate_min=check_rate_sec / 60,
+                                             imap_srv = imap_srv,imap_port=imap_port,
+                                             smtp_svr=smtp_svr, smtp_port=smtp_port)
+        self._daemon_log.info("Using Email Based SBD Connection (IMEI#: {0} Address: {1] IMAP Server: {2}:{3} SMTP Server: {4}:{5} Checking Every {6} Minutes)".format(
+            IMEI, email_account,imap_srv,imap_port,smtp_svr,smtp_port, check_rate_sec / 60))
 
     def disconnect(self):
         if self.connection is not None:

@@ -15,7 +15,7 @@ class SBDEmailConnection(object):
     def __init__(self, modem, IMEI,
                  email_account='acomms-support@whoi.edu',
                  username = None,pw = None,
-                 check_rate = 30,
+                 check_rate_min = 5,
                  imap_srv = "imap.whoi.edu", imap_port = 143,
                  smtp_svr = "outbox.whoi.edu", smtp_port = 25):
         self.modem = modem
@@ -24,15 +24,19 @@ class SBDEmailConnection(object):
         self.email_username = username
         self.email_userpw = pw
         self.IMEI = IMEI
-        self.email_check_rate = check_rate
+        self.email_check_rate = check_rate_min
         self.email_incoming_svr = imap_srv
         self.email_outgoing_svr = smtp_svr
         self.email_outgoing_port = smtp_port
         self.email_incoming_port = imap_port
         self.last_read = datetime.date.now()
-        self._thread = Thread(target=self._listen)
-        self._thread.setDaemon(True)
-        self._thread.start()
+        self.Alive = True
+        self._threadL = Thread(target=self._listen)
+        self._threadL.setDaemon(True)
+        self._threadL.start()
+        self._threadT = Thread(target=self._talk)
+        self._threadT.setDaemon(True)
+        self._threadT.start()
 
 
     @property
@@ -46,14 +50,19 @@ class SBDEmailConnection(object):
     def change_baudrate(self,baudrate):
         return 9600
 
+    def _talk(self):
+        while self.Alive:
+            self.modem._process_outgoing_nmea()
+            sleep(self.email_check_rate)
+
     def _listen(self):
-        while True:
+        while self.Alive:
             date = (datetime.date.now() - datetime.timedelta(1)).strftime("%d-%b-%Y")
             M = imaplib.IMAP4(self.email_incoming_svr, self.email_incoming_port)
             if self.email_username is not None:
                 response, details = M.login(self.email_userpw, self.email_userpw)
             M.select('INBOX')
-            #Limit our search to Unseen Messages for our IMEI in the Past 24 Hours
+            #Limit our search to Unseen Messages for our IMEI in the Past 24 Hours from Iridium Only
             response, items = M.search(None,
                                        '(UNSEEN SENTSINCE {date} HEADER Subject "SBD Msg From Unit: {IMEI}" FROM "sbdservice@sbd.iridium.com")'.format(
                                            date=date,
@@ -79,10 +88,8 @@ class SBDEmailConnection(object):
                     for line in msg.splitlines(True):
                         self.modem._process_incoming_nmea(line)
                     temp = M.store(emailid,'+FLAGS', '\\Seen')
-
             M.close()
             M.logout()
-            self.modem._process_outgoing_nmea()
             sleep(self.email_check_rate * 60) # Wait a minute and try again.
 
     def write(self,msg):
@@ -104,3 +111,6 @@ class SBDEmailConnection(object):
         smtp.connect(self.email_outgoing_svr,  self.email_outgoing_port)
         smtp.sendmail(self.FROM,['data@sbd.iridium.com', self.FROM], email_msg.as_string())
         smtp.quit()
+
+    def close(self):
+        self.Alive = False
