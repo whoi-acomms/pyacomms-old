@@ -178,6 +178,9 @@ class MessageParser:
     def CATOA(self, msg):
         pass
 
+    def CABBD(self,msg):
+        pass
+
     def CABDD(self, msg):
         pass
 
@@ -189,8 +192,9 @@ class MessageParser:
         ack = int(msg["params"][4]) == 1
         reserved = int(msg["params"][5])
 
-        #mfdata = msg["params"][6]
-        #dfdata = msg["params"][7]
+        mfdata = (msg(["params"][6])).split(';')
+        dfdata = (msg(["params"][7])).split(';')
+        pass
 
 
 
@@ -201,9 +205,16 @@ class MessageParser:
         ack = int(msg["params"][3]) == 1
         reserved = int(msg["params"][4])
 
-        #mfdata = msg["params"][5]
-        #dfdata = msg["params"][6]
+        mfdata = (msg(["params"][5])).split(';')
+        mf_crc_check = mfdata[0]
+        mf_nbytes = mfdata[1]
+        mf_data = data_from_hexstring(mfdata[2])
 
+        dfdata = (msg(["params"][6])).split(';')
+        df_crc_check = dfdata[0]
+        df_nbytes = dfdata[1]
+        df_data = data_from_hexstring(dfdata[2])
+        pass
 
     def CAALQ(self,msg):
         app_name = msg["params"][0]
@@ -253,9 +264,8 @@ class MessageParser:
     def CATMS(self,msg):
         dt = None
         timed_out = int(msg["params"][0])
-        #if timed_out == 0:
-        #    dt = convert_to_datetime(msg["params"][1])
-        dt = msg["params"][1]
+        if msg["params"][1] is not None:
+            dt = convert_to_datetime(msg["params"][1])
         self.modem._daemon_log.info("Modem Set Clock Response: Timed Out:{0} Time Set To:{1}".format(timed_out,dt))
 
     def CARBS(self,msg):
@@ -281,3 +291,32 @@ class MessageParser:
     def CAMIZ(self,msg):
         pass
 
+    def SNTTA(self,msg):
+        pass
+
+    def SNMFD(self,msg):
+        pass
+
+    def UPMFWA(self,msg):
+        slot = int(msg["params"][0])
+        data_loc = int(msg["params"][1])
+        total_data_size = int(msg["params"][2])
+        sha1_hash = msg["params"][3]
+        self.modem._daemon_log.info("Modem Starting FW Update Process: Slot {}, {} bytes, SHA1 HASH = ({}).".format(slot,total_data_size,sha1_hash))
+        pass
+
+    def UPDATA(self,msg):
+        nbytes_received = int(msg["params"][0])
+        self.modem._daemon_log.info("Modem Received {} Bytes of Firmware File Upload.".format(nbytes_received))
+        pass
+
+    def UPDONE(self,msg):
+        update_msg = msg["params"][0]
+        self.modem._daemon_log.info("Modem FW Update Done: {}".format(update_msg))
+        pass
+
+    def UPERR(self,msg):
+        errno = int(msg["params"][0])
+        err_msg = msg["params"][1]
+        self.modem._daemon_log.error("Modem FW Update Errored ({}): {}".format(errno,err_msg))
+        pass

@@ -923,6 +923,87 @@ class Micromodem(object):
 
         response = self.wait_for_nmea_type('CARBR', timeout=timeout, params=[1,0,'','',''])
 
+    def update_firmware(self, firmware_file_path, slot=1, reboot=False, File_location=0, data_upload_callback_fxn = None, done_call_back_fxn=None):
+        size_of_acceptable_data_chunks = 1013
+
+        filesize = os.path.getsize(firmware_file_path)
+        self.packets_to_send = filesize / size_of_acceptable_data_chunks
+        self.packet_count = 0
+        filename = os.path.basename(firmware_file_path)
+
+        rev_timeout = self.get_config_param('CTO')
+
+
+
+        if self.connection.can_change_baudrate():
+            #Set Baud Rate on Modem
+            self.set_config(name='uart1.bitrate',value=115200,response_timeout=None)
+            #Change Local Baudrate
+            self.connection.change_baudrate(115200)
+            response = self.wait_for_nmea_type('CAREV',timeout=rev_timeout + 5)
+            if response is None:
+                self._daemon_log.error("REV message not received. Aborting.")
+                return
+
+        data_timeout_rate = size_of_acceptable_data_chunks / (self.connection.baudrate / 8)
+
+        with open(firmware_file_path, 'rb') as firmware_file:
+            sha1hash = hashlib.sha1(firmware_file.read(filesize)).hexdigest()
+            firmware_file.seek(0)
+
+            #Send the Update Modem FW Command
+            params = [slot,File_location,filesize,int(reboot),sha1hash,filename]
+            msg = {'type':'UPMFW', 'params':params}
+            self.write_nmea(msg)
+            response = self.wait_for_nmea_types(['UPMFWA','UPERR'],timeout=2)
+            if response is None:
+                self._daemon_log.error("Update FW Command not acknowledged. Aborting.")
+                return
+            elif response['type'] == 'UPERR':
+                if 'Restarting' not in response['params'][1]:
+                    self._daemon_log.error("Update FW Command Error ({}). Aborting.".format(response['params'][1]))
+                else:
+                    self._daemon_log.info("Update FW Command Error ({}). Continuing Update.".format(response['params'][1]))
+            elif response['type'] == 'UPMFWA':
+                for (n, p) in zip(response['params'], params):
+                    # make sure that any non-None parameter matches.
+                    if p and (n != p):
+                        self._daemon_log.error("Update FW Command Parameter Mismatch ({} != {} ). Aborting.".format(params, response['params']))
+                        return
+
+            #Send our firmware file.
+            data_chunk = firmware_file.read(size_of_acceptable_data_chunks)
+            while data_chunk != "":
+                params = [hexlify(bytes(data_chunk))]
+                msg = {'type': 'UPDAT', 'params':params}
+                self.write_nmea(msg)
+                response = self.wait_for_nmea_types(['UPDATA','UPERR'],timeout= data_timeout_rate + 2)
+                if response is None:
+                    self._daemon_log.error("Update FW Data Upload not acknowledged. Aborting.")
+                    return
+                elif response['type'] == 'UPERR':
+                    self._daemon_log.error("Update FW Data Upload Error ({}). Aborting.".format(response['params'][1]))
+                    return
+                elif response['type'] == 'UPDATA':
+                    if int(response['params'][0]) != len(data_chunk):
+                        self._daemon_log.error("Update FW Data Upload Error ({} != {}). Aborting.".format(len(data_chunk),response['params'][0]))
+                        return
+                    self.packet_count += 1
+                    if data_upload_callback_fxn is not None:
+                        data_upload_callback_fxn()
+                data_chunk= firmware_file.read(size_of_acceptable_data_chunks)
+
+            response = self.wait_for_nmea_types(['UPDONE','UPERR'],timeout=None)
+            if response['type'] == 'UPDONE':
+                self._daemon_log.info("Update FW Command Completed. ({})".format(response['params']))
+                if done_call_back_fxn is not None:
+                    done_call_back_fxn()
+            elif response['type'] == 'UPERR':
+                self._daemon_log.error("Update FW Update Error ({}). Aborting.".format(response['params'][1]))
+
+
+        
+        
 class Message(dict):
     def __init__(self, raw):
         """Strips off NMEA checksum and leading $, returns command dictionary

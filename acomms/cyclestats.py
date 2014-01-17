@@ -74,7 +74,7 @@ class CycleStats(dict):
         if( version_number >=6):
             values['version_number'] = version_number
             values['mode'] = int(msg['params'][1])
-            
+
             
             # Parse the TOA field into a fractional datetime object.
             whole, fract = str(msg['params'][2]).split('.')
