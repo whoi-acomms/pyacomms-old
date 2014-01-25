@@ -37,6 +37,7 @@ class MessageParser:
         if key == "SRC": self.modem.id = int(value)
         if key == "ASD": self.modem.asd = bool(int(value))
         if key == "PCM": self.modem.pcm_on = bool(int(value))
+        self.modem.config_data[key] = value
         
     def CACYC(self, msg):
         src = int(msg["params"][1])
@@ -249,12 +250,18 @@ class MessageParser:
 
         self.modem._daemon_log.info("Pass Through Message Received: {0}".format(passthrough_msg))
 
+    def CAPST(self,msg):
+        pass
+
     def CAHIB(self,msg):
         hibernate_cause = int(msg["params"][0])
         hibernate_time = convert_to_datetime(msg["params"][1])
         wake_cause = int(msg["params"][2])
         wake_time = convert_to_datetime(msg["params"][3])
         self.modem._daemon_log.info("Modem Hibernate Ack: Hibernate({0},{1}), Wake({2},{3})".format(hibernate_cause,hibernate_time,wake_cause,wake_time))
+        pass
+
+    def CAMEC(self,msg):
         pass
 
     def CAHBR(self,msg):

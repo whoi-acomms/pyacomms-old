@@ -99,6 +99,7 @@ class Micromodem(object):
         self._nmea_out_log = unified_log.getLogger("nmea.to.{0}".format(self.name))
         self._nmea_out_log.setLevel(logging.INFO)
         self.unified_log = unified_log
+        self.config_data = {}
 
 
 
@@ -319,6 +320,7 @@ class Micromodem(object):
                 if msg:
                     param_name = msg['params'][0]
                     param_value = msg['params'][1]
+                    self.config_data[param_name] = param_value
                     # If we queried a config group, there is no associated value to add to the dictionary.
                     if param_value != "":
                         config_dict[param_name] = param_value
@@ -537,7 +539,7 @@ class Micromodem(object):
         else:
             return {str(name), str(value)}
 
-    def change_gpio(self, pin, value, toogle = False, duration=0):
+    def change_gpio(self, pin, value, toggle = False, duration=0):
         if pin == 1:
             MECValue = 5
         elif pin == 2:
@@ -582,12 +584,10 @@ class Micromodem(object):
             else:
                 mode = 3
                 
-        config = self.micromodem.get_config("SRC")
-        message = "$CCMEC,{0},{0},{1},{2}".format(config["SRC"],MECValue,mode,arg)
+        message = "$CCMEC,{0},{0},{1},{2},{3}".format(self.config_data["SRC"],MECValue,mode,arg)
         self.write_nmea(message)
-        if value == -1:
-            response = self.wait_for_nmea_type("CAMEC", timeout=self.default_nmea_timeout)
-            return int(response['params'][4])
+        response = self.wait_for_nmea_type("CAMEC", timeout=self.default_nmea_timeout)
+        return int(response['params'][4])
 
     def send_passthrough(self,msg):
         #Truncate our message to 48 characters
