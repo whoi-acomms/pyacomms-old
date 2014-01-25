@@ -186,35 +186,35 @@ class MessageParser:
         pass
 
     def CATDP(self,msg):
-        errflag = int(msg["params"][0])
-        uniqueID = int(msg["params"][1])
-        dest = int(msg["params"][2])
-        rate = int(msg["params"][3])
-        ack = int(msg["params"][4]) == 1
-        reserved = int(msg["params"][5])
+        #errflag = int(msg["params"][0])
+        #uniqueID = int(msg["params"][1])
+        #dest = int(msg["params"][2])
+        #rate = int(msg["params"][3])
+        #ack = int(msg["params"][4]) == 1
+        #reserved = int(msg["params"][5])
 
-        mfdata = (msg(["params"][6])).split(';')
-        dfdata = (msg(["params"][7])).split(';')
+        #mfdata = (msg(["params"][6])).split(';')
+        #dfdata = (msg(["params"][7])).split(';')
         pass
 
 
 
     def CARDP(self,msg):
-        src = int(msg["params"][0])
-        dest = int(msg["params"][1])
-        rate = int(msg["params"][2])
-        ack = int(msg["params"][3]) == 1
-        reserved = int(msg["params"][4])
+        #src = int(msg["params"][0])
+        #dest = int(msg["params"][1])
+        #rate = int(msg["params"][2])
+        #ack = int(msg["params"][3]) == 1
+        #reserved = int(msg["params"][4])
 
-        mfdata = (msg(["params"][5])).split(';')
-        mf_crc_check = mfdata[0]
-        mf_nbytes = mfdata[1]
-        mf_data = data_from_hexstring(mfdata[2])
+        #mfdata = (msg(["params"][5])).split(';')
+        #mf_crc_check = mfdata[0]
+        #mf_nbytes = mfdata[1]
+        #mf_data = data_from_hexstring(mfdata[2])
 
-        dfdata = (msg(["params"][6])).split(';')
-        df_crc_check = dfdata[0]
-        df_nbytes = dfdata[1]
-        df_data = data_from_hexstring(dfdata[2])
+        #dfdata = (msg(["params"][6])).split(';')
+        #df_crc_check = dfdata[0]
+        #df_nbytes = dfdata[1]
+        #df_data = data_from_hexstring(dfdata[2])
         pass
 
     def CAALQ(self,msg):
