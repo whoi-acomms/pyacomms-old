@@ -13,11 +13,11 @@ import datetime
 
 class SBDEmailConnection(object):
     def __init__(self, modem, IMEI,
-                 email_account='acomms-support@whoi.edu',
+                 email_account='acomms-sbd@whoi.edu',
                  username = None,pw = None,
                  check_rate_min = 5,
                  imap_srv = "imap.whoi.edu", imap_port = 143,
-                 smtp_svr = "outbox.whoi.edu", smtp_port = 25):
+                 smtp_svr = "outbox.whoi.edu", smtp_port = 25, DoD=False):
         self.modem = modem
         self.SUBJECT = IMEI
         self.FROM = email_account
@@ -30,6 +30,7 @@ class SBDEmailConnection(object):
         self.email_outgoing_port = smtp_port
         self.email_incoming_port = imap_port
         self.last_read = datetime.datetime.now()
+        self.UseDoDEmail = DoD
         self.Alive = True
         self._threadL = Thread(target=self._listen)
         self._threadL.setDaemon(True)
@@ -56,6 +57,10 @@ class SBDEmailConnection(object):
             sleep(self.email_check_rate)
 
     def _listen(self):
+        if self.UseDoDEmail:
+            ArrivalEmail = "service@sbd.pac.disa.mil"
+        else:
+            ArrivalEmail = "sbdservice@sbd.iridium.com"
         while self.Alive:
             date = (datetime.datetime.now() - datetime.timedelta(1)).strftime("%d-%b-%Y")
             M = imaplib.IMAP4(self.email_incoming_svr, self.email_incoming_port)
@@ -64,9 +69,10 @@ class SBDEmailConnection(object):
             M.select('INBOX')
             #Limit our search to Unseen Messages for our IMEI in the Past 24 Hours from Iridium Only
             response, items = M.search(None,
-                                       '(UNSEEN SENTSINCE {date} HEADER Subject "SBD Msg From Unit: {IMEI}" FROM "sbdservice@sbd.iridium.com")'.format(
+                                       '(UNSEEN SENTSINCE {date} HEADER Subject "SBD Msg From Unit: {IMEI}" FROM "{Email}")'.format(
                                            date=date,
-                                           IMEI=300125010116840))
+                                           IMEI=self.IMEI,
+                                           Email = ArrivalEmail))
             for emailid in items[0].split():
                 response, data = M.fetch(emailid, '(RFC822)')
                 mail = email.message_from_string(data[0][1])

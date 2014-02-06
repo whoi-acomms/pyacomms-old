@@ -28,7 +28,13 @@ class MessageParser:
         except Exception, e:
             self.modem._daemon_log.error("Exception when parsing: " + str(sys.exc_info()[0]))
             traceback.print_exc()
-        
+
+    def GPRMC(self,msg):
+        pass
+
+    def PUBX(self,msg):
+        pass
+
     def CACFG(self, msg):
         # Only worry about the parameters that matter...
         key = msg["params"][0]
