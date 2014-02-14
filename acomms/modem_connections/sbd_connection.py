@@ -101,7 +101,10 @@ class SBDEmailConnection(object):
     def write(self,msg):
         email_msg = MIMEMultipart()
         email_msg['Subject'] = "{0}".format(self.IMEI)
-        email_msg['To'] = 'data@sbd.iridium.com'
+        if self.UseDoDEmail:
+            email_msg['To'] = 'data@sbd.pac.disa.mil'
+        else:
+            email_msg['To'] = 'data@sbd.iridium.com'
         email_msg['From'] = "{0}".format(self.FROM)
 
         part = MIMEText(msg)
@@ -115,7 +118,7 @@ class SBDEmailConnection(object):
 
         smtp = smtplib.SMTP()
         smtp.connect(self.email_outgoing_svr,  self.email_outgoing_port)
-        smtp.sendmail(self.FROM,['data@sbd.iridium.com', self.FROM], email_msg.as_string())
+        smtp.sendmail(self.FROM,[email_msg['To'], self.FROM], email_msg.as_string())
         smtp.quit()
 
     def close(self):
