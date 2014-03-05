@@ -46,7 +46,7 @@ def to_utc_iso8601(datetime_to_convert, strip_fractional_seconds=False):
         datetime_to_convert.replace(microsecond=0)
 
     if (datetime_to_convert.tzinfo is None) or (datetime_to_convert.utcoffset is None):
-        datetime_to_convert.replace(tzinfo=isodate.UTC)
+        datetime_to_convert = datetime_to_convert.replace(tzinfo=isodate.UTC)
     else:
         datetime_to_convert = datetime_to_convert.astimezone(isodate.UTC)
 

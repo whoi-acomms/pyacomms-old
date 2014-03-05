@@ -236,8 +236,13 @@ class Micromodem(object):
                 msg = Message(msg)
                 
                 self.parser.parse(msg)
-                
-                for func in self.nmea_listeners: func(msg)  # Pass the message to any custom listeners.
+
+                try:
+                    for func in self.nmea_listeners:
+                        func(msg)  # Pass the message to any custom listeners.
+                except Exception, e:
+                    self._daemon_log.warn("Error in custom listener: ")
+                    self._daemon_log.warn(repr(e))
                 
                 # Append this message to all listening queues
                 for q in self.incoming_msg_queues:
@@ -592,7 +597,7 @@ class Micromodem(object):
 
     def send_passthrough(self,msg):
         #Truncate our message to 48 characters
-        info = data[:46] + (data[46:] and '..')
+        info = msg[:46] + (msg[46:] and '..')
 	    # Build a CCRSP message
         msg = {'type':'CCPAS', 'params':[info]}
 

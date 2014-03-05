@@ -152,10 +152,50 @@ class MessageParser:
     
     def CATXD(self, msg):
         '''CCTXD echo'''
+        pass
         
     def CAMSC(self, msg):
         '''Sleep command echo'''
-        
+        pass
+
+    def CATMS(self, msg):
+        '''Time set command echo '''
+        pass
+
+    def CATMG(self, msg):
+        '''Time status '''
+        pass
+
+    def CARBR(self, msg):
+        '''Log message retreival
+        '''
+        pass
+
+    def CAHIB(self, msg):
+        '''hibernate echo
+        '''
+        pass
+
+    def CATDP(self, msg):
+        ''' Transmit echo of new packet
+        '''
+        pass
+
+    def CARDP(self, msg):
+        ''' Received new packet
+        '''
+        pass
+
+    def CAHBR(self, msg):
+        '''Hibernate status
+        '''
+        pass
+
+    def CAALQ(self, msg):
+        '''API level query response
+        '''
+        pass
+
     def CACLK(self, msg):
         # $CACLK,yyyy,MM,dd,HH,mm,ss
         args = msg["params"]
