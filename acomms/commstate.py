@@ -167,7 +167,9 @@ class Idle(CommState):
         # Once we get a minipacket command, we send a reply...
         self.modem._changestate(WaitingForMinipacketTxf)
 
-    
+    def got_camsg(self,msg_type,number):
+        super(Idle,self).got_camsg(msg_type,number)
+
     def __str__(self):
         return "Idle"
         

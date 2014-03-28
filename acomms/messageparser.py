@@ -350,6 +350,9 @@ class MessageParser:
     def SNMFD(self,msg):
         pass
 
+    def SNUTX(self,msg):
+        pass
+
     def UPMFWA(self,msg):
         slot = int(msg["params"][0])
         data_loc = int(msg["params"][1])
