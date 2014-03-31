@@ -149,6 +149,10 @@ class MessageParser:
     def CAMPC(self, msg):
         '''Ping command echo'''
         pass
+
+    def CAMPR(self, msg):
+        '''Ping command reply'''
+        pass
     
     def CATXD(self, msg):
         '''CCTXD echo'''
