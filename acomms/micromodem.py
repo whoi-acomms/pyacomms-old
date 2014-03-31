@@ -505,6 +505,10 @@ class Micromodem(object):
         
         self.write_nmea(msg)
 
+    def send_minipacket(self,dest_id,databytes=[]):
+        msg = {'type':'CCMUC', 'params':[self.id, dest_id, databytes[0:4]]}
+        self.write_nmea(msg)
+
     def send_tdp(self, dest_id=None,databytes=[], rate_num=None, ack=False,base64data=False):
         rate = FDPRates[rate_num]
         ack = int(ack)

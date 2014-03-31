@@ -154,6 +154,18 @@ class MessageParser:
         '''Ping command reply'''
         pass
     
+    def CAMUC(self, msg):
+        '''User minipacket command echo'''
+        pass
+        
+    def CAMUR(self, msg):
+        '''User minipacket reply'''
+        pass
+
+    def CAMUA(self, msg):
+        '''User minipacket received accoustically'''
+        pass
+        
     def CATXD(self, msg):
         '''CCTXD echo'''
         pass
