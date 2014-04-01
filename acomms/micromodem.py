@@ -21,6 +21,7 @@ from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFra
 from acomms.modem_connections import SerialConnection
 from acomms.modem_connections import IridiumConnection
 from acomms.modem_connections import SBDEmailConnection
+from nmealistener import NmeaListener
 from unifiedlog import UnifiedLog
 
 
@@ -49,7 +50,7 @@ class ModemResponseError(Exception):
     pass
 
 
-class Micromodem(object):
+class Micromodem(object, NmeaListener):
     def __init__(self, name='modem', unified_log=None, log_path=None, log_level='INFO'):
 
         name = str(name)
@@ -255,6 +256,9 @@ class Micromodem(object):
             except:
                 self._daemon_log.warn("NMEA Input Error")
 
+
+    def _message_waiting(self):
+        return not self.serial_tx_queue.empty()
 
     def close_loggers(self):
         for hdlr in self._daemon_log.handlers:

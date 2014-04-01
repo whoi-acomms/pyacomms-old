@@ -38,7 +38,7 @@ class TcpConnection(ModemConnection, asyncore.dispatcher_with_send):
         asyncore.dispatcher_with_send.close(self)
 
     def writable(self):
-        return not self.modem.serial_tx_queue.empty()
+        return self.modem._message_waiting()
 
     def handle_read(self):
         msg = self.io_file.readline()
