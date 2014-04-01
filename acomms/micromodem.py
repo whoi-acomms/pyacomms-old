@@ -21,7 +21,6 @@ from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFra
 from acomms.modem_connections import SerialConnection
 from acomms.modem_connections import IridiumConnection
 from acomms.modem_connections import SBDEmailConnection
-from nmealistener import NmeaListener
 from unifiedlog import UnifiedLog
 
 
@@ -50,7 +49,7 @@ class ModemResponseError(Exception):
     pass
 
 
-class Micromodem(object, NmeaListener):
+class Micromodem(object):
     def __init__(self, name='modem', unified_log=None, log_path=None, log_level='INFO'):
 
         name = str(name)

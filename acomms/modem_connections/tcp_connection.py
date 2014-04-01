@@ -8,6 +8,7 @@ from threading import Thread
 class TcpConnection(ModemConnection, asyncore.dispatcher_with_send):
 
     def __init__(self,modem, ipaddr,port):
+        asyncore.dispatcher_with_send.__init__(self)
         self.create_socket(AF_INET, SOCK_STREAM)
         self.connect((ipaddr,port))
         self.io_file = self.socket.makefile()
