@@ -1,9 +1,11 @@
+
+from acomms.modem_connections import ModemConnection
 from serial import Serial
 from time import sleep
 from threading import Thread
 
 
-class SerialConnection(object):
+class SerialConnection(ModemConnection):
 
     def __init__(self, modem, port, baudrate, timeout=0.1):
         self._incoming_line_buffer = ""

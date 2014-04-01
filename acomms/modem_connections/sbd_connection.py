@@ -1,6 +1,6 @@
 __author__ = 'andrew'
 
-#from acomms.modem_connections import
+from acomms.modem_connections import ModemConnection
 from threading import Thread
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -11,7 +11,7 @@ from time import sleep
 import imaplib
 import datetime
 
-class SBDEmailConnection(object):
+class SBDEmailConnection(ModemConnection):
     def __init__(self, modem, IMEI,
                  email_account='acomms-sbd@whoi.edu',
                  username = None,pw = None,

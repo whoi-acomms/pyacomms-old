@@ -6,44 +6,26 @@ class ModemConnection(object):
 
     metaclass__ = abc.ABCMeta
 
-    @abc.abstractmethod
-    def get_output_voltage(self):
-        return
+    @abc.abstractproperty
+    def is_connected(self):
+        pass
+
+    @abc.abstractproperty
+    def can_change_baudrate(self):
+        pass
 
     @abc.abstractmethod
-    def get_output_voltage_setting(self):
-        return
+    def change_baudrate(self,baudrate):
+        pass
 
     @abc.abstractmethod
-    def set_output_voltage(self, volts):
-        return
+    def _listen(self):
+        pass
 
     @abc.abstractmethod
-    def get_output_current(self):
-        return
+    def close(self):
+        pass
 
     @abc.abstractmethod
-    def set_output_current(self, amps):
-        return
-
-    @abc.abstractmethod
-    def get_output_current_setting(self):
-        return
-
-    @abc.abstractmethod
-    def get_output_enable(self):
-        return
-
-    @abc.abstractmethod
-    def set_output_enable(self, enabled):
-        return
-
-    def enable_output(self):
-        self.set_output_enable(True)
-        return
-
-
-    def disable_output(self):
-        self.set_output_enable(False)
-        return
-    
+    def write(self,data):
+        pass
