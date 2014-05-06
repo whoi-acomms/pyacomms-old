@@ -66,6 +66,7 @@ class Micromodem(object):
         
         self.rxframe_listeners = []
         self.cst_listeners = []
+        self.ack_listeners = []
         
         self.incoming_cst_queues = []
         self.incoming_msg_queues = []
@@ -386,7 +387,12 @@ class Micromodem(object):
         
     def on_packetrx_success(self):
         self._daemon_log.info("Packet RX succeeded")
-        
+
+    def on_ack(self,ack,msg):
+        self._daemon_log.debug("Got ACK message")
+        for func in self.ack_listeners:
+            func(ack, msg) # Pass on the ACK message.
+
     def on_cst(self, cst, msg):
         self._daemon_log.debug("Got CST message")
 

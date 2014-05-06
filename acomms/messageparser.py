@@ -236,7 +236,8 @@ class MessageParser:
         pass
 
     def CAACK(self, msg):
-        pass
+        ack = msg['params']
+        self.modem.on_ack(ack,msg)
 
     def CATOA(self, msg):
         pass
