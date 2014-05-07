@@ -1,5 +1,5 @@
-from messageparams import CycleInfo, DrqParams, DataFrame, data_from_hexstring, hexstring_from_data
-from cyclestats import CycleStats
+from messageparams import CycleInfo, DrqParams, DataFrame, Ack, data_from_hexstring, hexstring_from_data
+from cyclestats import CycleStats, TransmitStats
 from modemlog import ModemLog
 from timeutil import *
 import commstate
@@ -94,7 +94,7 @@ class MessageParser:
             try:
                 msg_type = msg["params"][0]
                 number = int(msg["params"][1])
-                self.modem.state.got_CAMSG(msg_type,number)
+                self.modem.state.got_camsg(msg_type,number)
             except ValueError:
                 pass
         #TODO: Add PSK errors here
@@ -140,6 +140,13 @@ class MessageParser:
     
     def CAXST(self, msg):
         '''Transmit Statistics message'''
+        try:
+            xst = TransmitStats.from_nmea_msg(msg)
+
+            # Raise the event
+            self.modem.on_xst(xst, msg)
+        except Exception, ex:
+            self.modem._daemon_log.error("Error parsing XST: " + str(sys.exc_info()[0]))
         pass
     
     def CARXP(self, msg):
@@ -226,17 +233,23 @@ class MessageParser:
 
         try:
             cst = CycleStats.from_nmea_msg(msg)
-        
+
             # Raise the event
             self.modem.on_cst(cst, msg)
         except Exception, ex:
             self.modem._daemon_log.error("Error parsing CST: " + str(sys.exc_info()[0]))
-        
+            raise
+
     def CATRC(self, msg):
         pass
 
     def CAACK(self, msg):
-        ack = msg['params']
+        src = int(msg["params"][0])
+        dest = int(msg["params"][1])
+        frame_num = int(msg["params"][2])
+        ack = int(msg["params"][3]) == 1
+
+        ack = Ack(src, dest, ack, frame_num)
         self.modem.on_ack(ack,msg)
 
     def CATOA(self, msg):

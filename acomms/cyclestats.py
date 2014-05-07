@@ -208,4 +208,152 @@ class CycleStatsList(list):
             raise AttributeError(item)
     
             
-    
+class TransmitStats(dict):
+    '''
+    A single set of Receive Cycle Statistics
+    '''
+
+    # Note that we don't override the dict initalizer.
+
+    fields = ('time','toa_mode','mode', 'probe_length',
+              'bandwidth', 'carrier', 'rate_num', 'src', 'dest',
+              'ack', 'num_frames_expected', 'num_frames_sent', 'packet_type',
+              'nbytes', 'version_number')
+
+    # This automagically retrieves values from the dictionary when they are referenced as properties.
+    # Whether this is awesome or sucks is open to debate.
+    def __getattr__(self, item):
+        """Maps values to attributes.
+        Only called if there *isn't* an attribute with this name
+        """
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            raise AttributeError(item)
+
+    def __setattr__(self, item, value):
+        """Maps attributes to values.
+        Only if we are initialised
+        """
+        if not self.__dict__.has_key('_TransmitStats__initialized'):  # this test allows attributes to be set in the __init__ method
+            return dict.__setattr__(self, item, value)
+        elif self.__dict__.has_key(item):       # any normal attributes are handled normally
+            dict.__setattr__(self, item, value)
+        else:
+            self.__setitem__(item, value)
+
+    #For backward compatibility with classes that directly access the values dict.
+    @property
+    def values(self):
+        return self
+
+
+    def __str__(self):
+        ''' Default human-readable version of CycleStats.
+        Doesn't show all parameters, just the most common ones.'''
+        hrstr = "{ts}\tRate: {rate_num:.0f}\tFrames: {NFSent}/{NFExp}\t# Bytes: {nbytes}".format(
+                    ts=self['time'], rate_num=self['rate_num'],
+                    NFSent=self['num_frames_sent'],NFExp=self['num_frames_expected'],
+                    nbytes=self['nbytes'])
+        return hrstr
+
+
+    @classmethod
+    def from_nmea_msg(cls, msg, log_datetime=None, drop_data_timeout=True):
+
+        values = dict.fromkeys(CycleStats.fields)
+
+
+        version_number = int(msg['params'][0])
+        if( version_number ==6):
+            values['version_number'] = version_number
+
+            date = datetime.datetime.strptime(str(msg['params'][1]), "%Y%m%d")
+
+            # Parse the time field into a fractional datetime object.
+            whole, fract = str(msg['params'][2]).split('.')
+            time = datetime.datetime.strptime(whole, '%H%M%S')
+            values['time'] = time.replace(year=date.year,month=date.month,day=date.day,microsecond = int(fract))
+
+            values['toa_mode'] = int(msg['params'][3])
+            values['mode'] = int(msg['params'][4])
+            # If we have a PACKET_TIMEOUT, just return with "None" in most fields
+            if values['mode'] == 4:
+                if drop_data_timeout:
+                    return None
+                else:
+                    return cls(values)
+
+
+
+
+            values['probe_length'] = int(msg['params'][5])
+            values['bandwidth'] = int(msg['params'][6])
+            values['carrier'] = int(msg['params'][7])
+            values['rate_num'] = int(msg['params'][8])
+            values['src'] = int(msg['params'][9])
+            values['dest'] = int(msg['params'][10])
+            values['ack'] = int(msg['params'][11])
+            values['num_frames_expected'] = int(msg['params'][12])
+            values['num_frames_sent'] = int(msg['params'][13])
+            values['packet_type'] = int(msg['params'][14])
+            values['nbytes'] = int(msg['params'][15])
+
+        else:
+            version_number = 0
+            date = datetime.datetime.strptime(str(msg['params'][0]), "%Y%m%d")
+
+            # Parse the time field into a fractional datetime object.
+            whole, fract = str(msg['params'][1]).split('.')
+            time = datetime.datetime.strptime(whole, '%H%M%S')
+            values['time'] = time.replace(year=date.year,month=date.month,day=date.day,microsecond = int(fract))
+
+            values['toa_mode'] = int(msg['params'][2])
+            values['mode'] = int(msg['params'][3])
+            # If we have a PACKET_TIMEOUT, just return with "None" in most fields
+            if values['mode'] == 4:
+                if drop_data_timeout:
+                    return None
+                else:
+                    return cls(values)
+
+            values['probe_length'] = int(msg['params'][4])
+            values['bandwidth'] = int(msg['params'][5])
+            values['carrier'] = int(msg['params'][6])
+            values['rate_num'] = int(msg['params'][7])
+            values['src'] = int(msg['params'][8])
+            values['dest'] = int(msg['params'][9])
+            values['ack'] = int(msg['params'][10])
+            values['num_frames_expected'] = int(msg['params'][11])
+            values['num_frames_sent'] = int(msg['params'][12])
+            values['packet_type'] = int(msg['params'][13])
+            values['nbytes'] = int(msg['params'][14])
+
+            values['version_number'] = version_number
+
+
+        # Make a CycleStats
+        xst = cls(values)
+
+        return xst
+
+class TransmitStatsList(list):
+    # We want to do list-ish things, with some extra sauce.
+
+    def to_dict_of_lists(self):
+        dol = {}
+        for field in TransmitStats.fields:
+            dol[field] = [xst[field] for xst in self]
+
+        return dol
+
+    # This automagically retrieves lists for each parameter when they are referenced as properties.
+    # Whether this is awesome or sucks is open to debate.
+    def __getattr__(self, item):
+        """Maps values to attributes.
+        Only called if there *isn't* an attribute with this name
+        """
+        if item in TransmitStats.fields:
+            return [xst[item] for xst in self]
+        else:
+            raise AttributeError(item)

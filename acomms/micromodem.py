@@ -66,9 +66,11 @@ class Micromodem(object):
         
         self.rxframe_listeners = []
         self.cst_listeners = []
+        self.xst_listeners = []
         self.ack_listeners = []
         
         self.incoming_cst_queues = []
+        self.incoming_xst_queues = []
         self.incoming_msg_queues = []
 
         self._api_level = 1
@@ -406,6 +408,19 @@ class Micromodem(object):
             except:
                 self._daemon_log.warn("Error appending to incoming CST queue")
 
+    def on_xst(self, xst, msg):
+        self._daemon_log.debug("Got XST message")
+
+        for func in self.xst_listeners:
+            func(xst, msg) # Pass on the CST message.
+
+        # Append this message to all listening queues
+        for q in self.incoming_xst_queues:
+            try:
+                q.put_nowait(xst)
+            except:
+                self._daemon_log.warn("Error appending to incoming XST queue")
+
     def on_log_msg(self,log,msg):
         self._daemon_log.debug("Got Logged message")
 
@@ -502,7 +517,7 @@ class Micromodem(object):
 
     def send_uplink_frame(self,drqparams):
         if self.get_uplink_data_function is not None:
-            data = self.get_uplink_data_function(drqparams.num_bytes,self.id)
+            data = self.get_uplink_data_function(drqparams)
         else:
             data = bytearray(struct.pack('!BBBBi', 0, 0, 1, 0, int(time())))
             
@@ -808,6 +823,7 @@ class Micromodem(object):
         self.incoming_cst_queues.remove(queue_to_detach)    
 
 
+
     def wait_for_cst(self, timeout=None):
         incoming_cst_queue = Queue()
         self.attach_incoming_cst_queue(incoming_cst_queue)
@@ -820,6 +836,25 @@ class Micromodem(object):
         self.detach_incoming_cst_queue(incoming_cst_queue)
 
         return cst
+
+    def attach_incoming_xst_queue(self, queue_to_attach):
+        self.incoming_xst_queues.append(queue_to_attach)
+
+    def detach_incoming_xst_queue(self, queue_to_detach):
+        self.incoming_xst_queues.remove(queue_to_detach)
+
+    def wait_for_xst(self,timeout=None):
+        incoming_xst_queue = Queue()
+        self.attach_incoming_xst_queue(incoming_xst_queue)
+
+        try:
+            xst = incoming_xst_queue.get(block=True, timeout=timeout)
+        except Empty:
+            xst = None
+
+        self.detach_incoming_xst_queue(incoming_xst_queue)
+
+        return xst
 
     def attach_incoming_msg_queue(self, queue_to_attach):
         self.incoming_msg_queues.append(queue_to_attach)

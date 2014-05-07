@@ -31,6 +31,9 @@ class CycleInfo(object):
         return self.__dict__ == other.__dict__
         
 class DrqParams(object):
+    def __repr__(self):
+        return "SRC: {} DST: {} ACK: {} NUMBYTES: {} FRAME#: {}".format(self.src,self.dest,self.ack,self.num_bytes,self.frame_num)
+
     def __init__(self, src, dest, ack, num_bytes, frame_num):
         self.src = int(src)
         self.dest = int(dest)
@@ -38,6 +41,17 @@ class DrqParams(object):
         self.num_bytes = int(num_bytes)
         self.frame_num = int(frame_num)
         
+class Ack(object):
+    def __repr__(self):
+        return "SRC: {} DST: {} FRAME#: {}".format(self.src,self.dest,self.frame_num)
+
+    def __init__(self, src, dest, ack, frame_num):
+        self.src = int(src)
+        self.dest = int(dest)
+        self.ack = bool(ack)
+        self.frame_num = int(frame_num)
+
+
 
 class DataFrame(object):
     def __init__(self, src, dest, ack, frame_num, data, bad_crc=False):
@@ -50,6 +64,9 @@ class DataFrame(object):
             self.data = bytearray(data)
         else:
             self.data = None
+
+    def __repr__(self):
+        return "SRC: {} DST: {} ACK: {} FRAME#: {} BAD_CRC: {} DATA: {}".format(self.src,self.dest,self.ack,self.frame_num, self.bad_crc, repr(self.data))
         
 class Packet(object):
     def __init__(self, cycleinfo, frames=None):

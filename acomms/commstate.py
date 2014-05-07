@@ -524,7 +524,13 @@ class WaitingForRxData(CommState):
             self.modem.on_packetrx_failed()
         
         self.modem._changestate(Idle)
-    
+
+    def got_camsg(self,msg_type,number):
+        CommState.got_camsg(self,msg_type,number)
+        self.modem.on_packetrx_failed()
+        self.modem._changestate(Idle)
+
+
     def __str__(self):
         return "Waiting for RX Data"
                 
