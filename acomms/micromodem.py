@@ -68,7 +68,8 @@ class Micromodem(object):
         self.cst_listeners = []
         self.xst_listeners = []
         self.ack_listeners = []
-        
+
+        self.incoming_dataframe_queues = []
         self.incoming_cst_queues = []
         self.incoming_xst_queues = []
         self.incoming_msg_queues = []
@@ -374,6 +375,12 @@ class Micromodem(object):
         self._daemon_log.debug("I got a frame!  Yay!")
         for func in self.rxframe_listeners:
             func(dataframe)
+        # Append this message to all listening queues
+        for q in self.incoming_dataframe_queues:
+            try:
+                q.put_nowait(dataframe)
+            except:
+                self._daemon_log.warn("Error appending to incoming dataframe queue")
 
     def on_minipacket_tx_failed(self):
         self._daemon_log.warn("Minipacket transmit failed.")
@@ -528,6 +535,17 @@ class Micromodem(object):
         msg = {'type':'CCMPC', 'params':[self.id, dest_id]}
         
         self.write_nmea(msg)
+
+    def wait_for_ping_reply(self,dest_id,timeout=30):
+        time = None
+        ping_reply = self.wait_for_nmea_type('CAMPR',timeout=timeout)
+
+        if ping_reply is not None:
+            dest = int(ping_reply["params"][1])
+            if dest == self.id:
+                time = abs(float(ping_reply["params"][2]))
+        return time
+
 
     def send_minipacket(self,dest_id,databytes=[]):
         msg = {'type':'CCMUC', 'params':[self.id, dest_id, databytes[0:4]]}
@@ -815,6 +833,56 @@ class Micromodem(object):
 
         return (modem_time, clock_source, pps_source)
 
+
+    def wait_for_minipacket(self,timeout=30):
+        data = None
+        userminipacket_recpt = self.wait_for_nmea_type('CAMUA',timeout=timeout)
+
+        if userminipacket_recpt is not None:
+            dest = int(userminipacket_recpt["params"][1])
+            if dest == self.id:
+                data = str(userminipacket_recpt["params"][2])
+        return data
+
+    def attach_incoming_dataframe_queue(self, queue_to_attach):
+        self.incoming_dataframe_queues.append(queue_to_attach)
+
+    def detach_incoming_dataframe_queue(self, queue_to_detach):
+        self.incoming_dataframe_queues.remove(queue_to_detach)
+
+    def wait_for_data_packet(self,timeout=30):
+        data_frame_queue = Queue()
+        self._daemon_log.info("Waiting for CACYC")
+        self.wait_for_nmea_type(type_string='CACYC',timeout=timeout)
+        self._daemon_log.info("Got CACYC")
+        self.attach_incoming_dataframe_queue(data_frame_queue)
+        cst = self.wait_for_cst(timeout=timeout)
+        self.detach_incoming_dataframe_queue(data_frame_queue)
+
+        self._daemon_log.info("Processing Data Packets Received.")
+        data = bytearray()
+        #Reject packet if some of the data didn't make it or if the message received wasn't for me.
+        if cst is None or cst['bad_frames_num'] > 0 or cst['dest'] != self.id:
+            self._daemon_log.warn("CST not valid. {}".format(cst))
+            return None
+        frame_count = cst['num_frames']
+        self._daemon_log.info("Number of Data Frames expected: {}".format(frame_count))
+        while frame_count > 0:
+            try:
+                data_frame = data_frame_queue.get(block=True,timeout=timeout)
+            except Empty:
+                #Reject packet if not enough data frames were received.
+                self._daemon_log.info("Empty Dataframe Queue before total frames received. Frames Left:{}".format(frame_count))
+                return None
+            #Reject data_frames not destined for me.
+            if data_frame.dest != self.id:
+                self._daemon_log.info("Skipping data frame not destined for {}".format(self.id))
+                continue
+
+            data.append(data_frame.data)
+            frame_count = frame_count - 1
+
+        return data
 
     def attach_incoming_cst_queue(self, queue_to_attach):
         self.incoming_cst_queues.append(queue_to_attach)
