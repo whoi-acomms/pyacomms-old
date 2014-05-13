@@ -6,10 +6,9 @@ from unifiedlog import UnifiedLog
 from acomms import Micromodem
 import crcmod
 import time
-import sys
+import os
 
-
-class acomms_xmodem(object):
+class acomms_xymodem(object):
     '''
     XMODEM Like Protocol handler, expects an object to read from and an object to
     write to.
@@ -18,9 +17,9 @@ class acomms_xmodem(object):
     :type pad: char
     '''
 
-    def __init__(self, micromodem, dest,rate = 1, timeout=60,pad='\x1a',unified_log=None,log_path=None, ):
+    def __init__(self, micromodem, dest,rate = 1, timeout=60,pad='\x1a',ymodem_enabled = True,unified_log=None,log_path=None, ):
         assert isinstance(micromodem, Micromodem), "micromodem object isn't a Micromodem: %r" & micromodem
-        assert rate in range(0,6), "Invalid Rate: %d" & rate
+        assert rate in range(0,7), "Invalid Rate: %d" & rate
         assert dest != micromodem.id, "Can't send file to self."
         self.pad = pad
 
@@ -35,6 +34,9 @@ class acomms_xmodem(object):
         self.log = unified_log.getLogger("xmodem.{0}".format(micromodem.name))
         self.target_id = dest
         self.timeout = timeout
+        self.ymodem_mode = True
+        self.use_minipackets = False
+        self.fsk_mode = self.rate.number == 0
 
     SOH = '0001'
     STX = '0002'
@@ -44,6 +46,55 @@ class acomms_xmodem(object):
     NAK = '0015'
     CAN = '0018'
     CRC = '0043'
+
+    CRC_BIT_ID = 0xF000
+    SEQ_NUM_BIT_ID = 0x0F00
+    MAX_SEQ_NUM = 256
+
+    def _receive_across_link(self,ack,timeout=None,delay=3,force_packet = False, validate_packet=False):
+        if self.use_minipackets and not force_packet:
+            data = self.micromodem.wait_for_minipacket(timeout=timeout)
+            if ack:
+                print("Acking Minipacket Data: {}".format(data))
+                self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.ACK)
+                self.micromodem.wait_for_xst(timeout)
+                time.sleep(delay)
+        else:
+            data = self.micromodem.wait_for_data_packet(fsk = self.fsk_mode,timeout=timeout)
+            if ack:
+                print("Waiting for Ack to Finish Transmitting")
+                self.micromodem.wait_for_xst(timeout=timeout)
+        return data
+
+    def _send_across_link(self,data,ack,timeout = None,delay = 3,force_packet = False, validate_packet=False):
+        if self.use_minipackets and not force_packet:
+            self.micromodem.send_minipacket(dest_id=self.target_id,databytes=data)
+            self.micromodem.wait_for_xst(timeout)
+            time.sleep(delay)
+            if ack:
+                print ("Waiting for Minpacket ACK")
+                char = self.micromodem.wait_for_minipacket(timeout=None)
+                if char != self.ACK:
+                    print "Nonack character received: {}".format(char)
+                    return False
+            return True
+        else:
+            self.micromodem.send_packet_data(dest=self.target_id,rate_num=self.rate.number,databytes=data,ack=ack)
+            xst = self.micromodem.wait_for_xst(timeout=None)
+            if validate_packet:
+                print("Validating Packet Transmission")
+                time.sleep(delay * self.rate.numframes)
+                if xst['num_frames_sent'] != xst['num_frames_expected']:
+                    print("num_frames_sent != num_frames_expected: {} != {}".format(xst['num_frames_sent'] , xst['num_frames_expected']))
+                    return False
+            if ack:
+                print("Waiting for Packet Ack")
+                for i in range(1,self.rate.numframes + 2):
+                    ack = self.micromodem.wait_for_nmea_type('CAACK',timeout=timeout)
+                    if ack is None:
+                        print "No ACK received for frame {}.".format(i)
+                        return False
+            return True
 
     def calculate_packet_delay(self,timeout=30):
         #determine distance between nodes for 1-way travel time delay estimates.
@@ -57,11 +108,10 @@ class acomms_xmodem(object):
         '''
         for counter in xrange(0, count):
             print ("Sending CAN")
-            self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.CAN)
-            self.micromodem.wait_for_xst(timeout)
+            self._send_across_link(self,self.CAN,False,timeout = timeout)
 
 
-    def send(self, stream, retry=16, timeout=15, delay = 1, callback=None):
+    def send(self, file_io, retry=16, timeout=15, delay = 1, callback=None):
         '''
         Send a stream via the XMODEM Like protocol.
 
@@ -91,7 +141,10 @@ class acomms_xmodem(object):
         :type callback: callable
         '''
         assert delay != None, "Invalid Delay."
-        assert hasattr(stream,"read"), "Stream not readable. "
+        if self.ymodem_mode:
+            assert os.path.isfile(file_io), "Ymodem Mode Enabled and File not passed in."
+        else:
+            assert hasattr(file_io,"read"), "Stream not readable. "
         assert timeout > delay, "Timeout is less than delay."
         if callback != None:
             assert callable(callback), "Non-nulll callback isn't callable."
@@ -104,6 +157,10 @@ class acomms_xmodem(object):
             raise ValueError("An invalid mode was supplied")
 
 
+        if self.ymodem_mode:
+            stream = open(file_io,'r+')
+        else:
+            stream = file_io
 
         error_count = 0
         crc_mode = 0
@@ -113,7 +170,7 @@ class acomms_xmodem(object):
 
         while True:
             print("Waiting On Connection")
-            minipacket_data = self.micromodem.wait_for_minipacket(timeout=None)
+            minipacket_data = self._receive_across_link(ack=False)
 
             if minipacket_data:
                 if minipacket_data == self.NAK:
@@ -123,9 +180,7 @@ class acomms_xmodem(object):
                 elif minipacket_data == self.CRC:
                     print("CRC Mode On, Acking")
                     crc_mode = 1
-                    self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.ACK)
-                    self.micromodem.wait_for_xst(timeout)
-                    time.sleep(delay)
+                    self._send_across_link(data=self.ACK,ack=False,timeout=None,delay=delay)
                     break
                 elif minipacket_data == self.CAN:
                     print('received CAN')
@@ -141,13 +196,23 @@ class acomms_xmodem(object):
                 self.abort(timeout=timeout)
                 return False
 
+        #Send Packet Header.
+
         # send data
         error_count = 0
         success_count = 0
         total_packets = 0
-        sequence = 1
+        sequence = 0
         while True:
-            data = stream.read(packet_size)
+            #Send Packet Header if in that mode.
+            if sequence == 0 and self.ymodem_mode:
+                data = os.path.basename(file_io).lower() + " " + \
+                       str(os.path.getsize(file_io))
+            #Otherwise just send data
+            else:
+                # keep track of sequence
+                sequence = (sequence + 1) % self.MAX_SEQ_NUM
+                data = stream.read(packet_size)
             if not data:
                 print('sending EOT')
                 # end of stream
@@ -159,24 +224,21 @@ class acomms_xmodem(object):
             # emit packet
             while True:
                 print("Starting Transmission")
-                self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.STX)
-                self.micromodem.wait_for_xst(timeout)
-                time.sleep(delay)
+                self._send_across_link(data=self.STX,ack=False,timeout=None,delay=delay)
+
                 #Send our sequence number
-                sequence_num = 3840 + sequence
+                sequence_num = sequence + self.SEQ_NUM_BIT_ID #Add Sequence Bit ID to the front.
                 print("Sending Sequence Number: {} ({})".format(sequence_num, "{:04X}".format(sequence_num)))
-                self.micromodem.send_minipacket(dest_id=self.target_id,databytes="{:04X}".format(sequence_num))
-                self.micromodem.wait_for_xst(timeout)
-                print ("Waiting for ACK")
-                char = self.micromodem.wait_for_minipacket(timeout=None)
-                if char != self.ACK:
-                    print('Sequence number not acked, Restarting aborted')
-                    continue
+                ok = self._send_across_link(data="{:04X}".format(sequence_num),ack=True,timeout=None,delay=delay)
+                #Since Modem is broken on larger than 8 bit mini-packets, send a real packet.
+                if not ok:
+                    print('Sequence number not acked, Aborting')
+                    self.abort(timeout=timeout)
+                    return False
+
                 print ("Sending Data.")
-                self.micromodem.send_packet_data(dest=self.target_id, databytes=data, rate_num=self.rate.number, ack=True)
-                xst = self.micromodem.wait_for_xst(timeout=None)
-                time.sleep(delay * self.rate.numframes)
-                if xst['num_frames_sent'] != xst['num_frames_expected']:
+                ok = self._send_across_link(data=data, ack=True, force_packet=True, validate_packet=True)
+                if not ok:
                     error_count += 1
                     print('Not all frames transfered.')
                     if error_count >= retry:
@@ -185,15 +247,12 @@ class acomms_xmodem(object):
                         self.abort(timeout=timeout)
                         return False
                     continue
-                self.micromodem.wait_for_nmea_type('CAACK',timeout=None)
 
                 if crc_mode:
-                    print("Sending CRC: {} ({:04X})".format(crc, crc + 4864))
-                    time.sleep(5)
-                    self.micromodem.send_minipacket(dest_id=self.target_id,databytes="{:04X}".format(crc + 4864))
-                    self.micromodem.wait_for_xst(timeout)
+                    print("Sending CRC: {} ({:04X})".format(crc, crc + self.CRC_BIT_ID))
+                    self._send_across_link(data="{:04X}".format(crc + self.CRC_BIT_ID),ack=False,timeout=None,delay=delay)
 
-                char = self.micromodem.wait_for_minipacket(timeout=None)
+                char = self._receive_across_link(ack=False,timeout=None)
                 if char == self.ACK:
                     success_count += 1
                     if callback != None:
@@ -220,35 +279,37 @@ class acomms_xmodem(object):
                 print('protocol error')
                 return False
 
-            # keep track of sequence
-            sequence = (sequence + 1) % 256
-
         while True:
             print("Sending EOT")
             # end of transmission
-            self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.EOT)
-            self.micromodem.wait_for_xst(timeout)
-            #An ACK should be returned
-            char = self.micromodem.wait_for_minipacket(timeout=None)
-            if char == self.ACK:
-                break
-            else:
+            ok = self._send_across_link(data=self.EOT,ack=True,timeout=None,delay=delay)
+            if not ok:
                 error_count += 1
                 if error_count >= retry:
                     self.abort(timeout=timeout)
                     self.log.warning('EOT was not ACKd, transfer aborted')
                     return False
+            else:
+                break
 
         return True
 
-    def recv(self, stream, crc_mode=1, retry=16, timeout=15, delay=1):
+    def recv(self, file_io, crc_mode=1, retry=16, timeout=15, delay=1):
         assert delay != None, "Invalid Delay."
-        assert hasattr(stream,"write"), "Stream not writeable. "
+        if self.ymodem_mode:
+            assert os.path.isdir(file_io), "Ymodem Mode Enabled and Directory for saving not passed in."
+        else:
+            assert hasattr(file_io,"write"), "Stream not writeable. "
         assert timeout > delay, "Timeout is less than delay."
+
+        if not self.ymodem_mode:
+            stream = file_io
+
         # initiate protocol
         error_count = 0
         char = 0
         cancel = 0
+        size = 0
         while True:
             # first try CRC mode, if this fails,
             # fall back to checksum mode
@@ -257,23 +318,23 @@ class acomms_xmodem(object):
                 return None
             elif crc_mode and error_count < (retry / 2):
                 print("Sending CRC Mode")
-                self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.CRC)
-                self.micromodem.wait_for_xst(timeout)
-                char = self.micromodem.wait_for_minipacket(timeout = None)
-                if char != self.ACK:
-                    print("CRC Mode Not Acked. {} Error Count:{}".format(char,error_count))
-                    time.sleep(delay)
-                    error_count += 1
+                ok = self._send_across_link(data=self.CRC,ack=True,timeout=None,delay=delay)
+                if not ok:
+                        print("CRC Mode Not Acked. {} Error Count:{}".format(char,error_count))
+                        time.sleep(delay)
+                        error_count += 1
+                        continue
                 else:
-                    print("CRC Mode Acked.")
+                        print("CRC Mode Acked.")
             else:
                 crc_mode = 0
                 print("CRC Mode Off. Sending NACK")
-                self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.NAK)
-                self.micromodem.wait_for_xst(timeout)
+                self._send_across_link(data=self.NAK,ack=False,timeout=None,delay=delay)
+
 
             print("Waiting For Start of Transmission.")
-            char = self.micromodem.wait_for_minipacket(timeout = None)
+            char = self._receive_across_link(ack=False,timeout=None)
+
             if char == self.STX:
                 break
             elif char == self.CAN:
@@ -289,8 +350,12 @@ class acomms_xmodem(object):
         # read data
         error_count = 0
         income_size = 0
-        sequence = 1
+        if self.ymodem_mode:
+            sequence = 0
+        else:
+            sequence = 1
         cancel = 0
+        filename = ""
         while True:
             while True:
                 if char == self.STX:
@@ -300,8 +365,13 @@ class acomms_xmodem(object):
                     # We received an EOT, so send an ACK and return the received
                     # data length
                     print("End of Transmission. Acking.")
-                    self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.ACK)
-                    self.micromodem.wait_for_xst(timeout)
+                    self._send_across_link(data=self.ACK,ack=False,timeout=None,delay=delay)
+
+                    if not self.ymodem_mode:
+                        stream.close()
+                    if income_size != size and size != 0:
+                        os.remove(file_io + '/'+ filename)
+                        return 0
                     return income_size
                 elif char == self.CAN:
                     # cancel at two consecutive cancels
@@ -321,22 +391,32 @@ class acomms_xmodem(object):
             error_count = 0
             cancel = 0
             print("Waiting For Sequence Number.")
-            seq =self.micromodem.wait_for_minipacket(timeout=None)
-            print("Acking Sequence Number {}.".format(seq))
-            self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.ACK)
-            self.micromodem.wait_for_xst(timeout=None)
+            seq = self._receive_across_link(ack=True,timeout=None)
+
+
             print("Waiting For Data.")
-            data = self.micromodem.wait_for_data_packet()
+            data = self.micromodem.wait_for_data_packet(fsk=(self.rate.number == 0))
+            data = self._receive_across_link(ack=True,timeout=None,force_packet=True)
+
             if crc_mode:
                     print("Waiting For CRC.")
-                    crc_recv = self.micromodem.wait_for_minipacket(timeout=None)
-            real_seq = int("0x{}".format(seq),16)  - 3840
+                    crc_recv= self._receive_across_link(ack=False,timeout=None)
+
+            real_seq = int("0x{}".format(seq),16)  - self.SEQ_NUM_BIT_ID
             print "Calculated Sequence Num: {}".format(real_seq)
-            if real_seq == sequence:
+            data = data.rstrip(self.pad)
+
+            #Process Header
+            if real_seq == 0 and self.ymodem_mode:
+                (filename,size) = data.split()
+                print("Saving {}/{} of size: {}".format(file_io,filename,size))
+                stream = open(file_io + '/'+ filename, 'w+')
+            #Otherwise process data.
+            elif real_seq == sequence:
                 # sequence is ok, read packet
                 # packet_size + checksum
                 if crc_mode:
-                    csum = int("0x{}".format(crc_recv),16) - 4864
+                    csum = int("0x{}".format(crc_recv),16) - self.CRC_BIT_ID
                     print('CRC (%04x <> %04x)' % (csum, self.calc_crc(data)))
                     valid = csum == self.calc_crc(data)
                 else:
@@ -349,19 +429,77 @@ class acomms_xmodem(object):
                     income_size += len(data)
                     stream.write(data)
                     print("Acking Data.")
-                    self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.ACK)
-                    self.micromodem.wait_for_xst(timeout)
-                    time.sleep(delay)
-                    sequence = (sequence + 1) % 256
-                    char = self.micromodem.wait_for_minipacket(timeout=None)
+                    ok = self._send_across_link(data=self.ACK,ack=False,timeout=None,delay=delay)
+                    if not ok:
+                        continue
+                    sequence = (sequence + 1) % self.MAX_SEQ_NUM
+                    self._receive_across_link(ack=False,timeout=None,delay=delay)
                     continue
             else:
                 print('expecting sequence %d, got %d' % (sequence, real_seq))
 
             # something went wrong, request retransmission
             print("Nacking Data.")
-            self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.NAK)
-            self.micromodem.wait_for_xst(timeout)
-            time.sleep(delay)
+            self._send_across_link(data=self.NAK,ack=False,timeout=None,delay=delay)
+            self._receive_across_link(ack=False,timeout=None,delay=delay)
 
 
+class acomms_xmodem(acomms_xymodem):
+    def calculate_packet_delay(self, timeout = 30):
+        super(acomms_xmodem, self).calculate_packet_delay(timeout)
+
+    def recv(self, file_io, crc_mode = 1, retry = 16, timeout = 15, delay = 1):
+        return super(acomms_xmodem, self).recv(file_io, crc_mode, retry, timeout, delay)
+
+    def send(self, file_io, retry = 16, timeout = 15, delay = 1, callback = None):
+        return super(acomms_xmodem, self).send(file_io, retry, timeout, delay, callback)
+
+    def __init__(self, micromodem, dest, rate = 1, timeout = 60, pad = '\x1a',
+                 unified_log = None, log_path = None):
+        super(acomms_xmodem, self).__init__(micromodem, dest, rate, timeout, pad, False, unified_log, log_path)
+
+
+class acomms_ymodem(acomms_xymodem):
+    def calculate_packet_delay(self, timeout = 30):
+        super(acomms_ymodem, self).calculate_packet_delay(timeout)
+
+    def __init__(self, micromodem, dest, rate = 1, timeout = 60, pad = '\x1a',
+                 unified_log = None, log_path = None):
+        super(acomms_ymodem, self).__init__(micromodem, dest, rate, timeout, pad, True, unified_log, log_path)
+
+    def recv(self, file_io, crc_mode = 1, retry = 16, timeout = 15, delay = 1):
+        return super(acomms_ymodem, self).recv(file_io, crc_mode, retry, timeout, delay)
+
+    def send(self, file_io, retry = 16, timeout = 15, delay = 1, callback = None):
+        return super(acomms_ymodem, self).send(file_io, retry, timeout, delay, callback)
+
+
+
+class acomms_zmodem(object):
+    def __init__(self, micromodem, dest,rate = 1, timeout=60,pad='\x1a',ymodem_enabled = True,unified_log=None,log_path=None, ):
+        assert isinstance(micromodem, Micromodem), "micromodem object isn't a Micromodem: %r" & micromodem
+        assert rate in range(0,6), "Invalid Rate: %d" & rate
+        assert dest != micromodem.id, "Can't send file to self."
+        self.pad = pad
+
+        self.rate = Rates[rate]
+        self.micromodem = micromodem
+        self.micromodem.set_config('RXP',1)
+        self.micromodem.set_config('MOD',1)
+        #use CRC-8/CDMA2000 instead of CRC-16 CCITT Unreflected.
+        self.calc_crc = crcmod.mkCrcFun(0x19b, rev=False, initCrc=0xff, xorOut=0x00)
+        if unified_log is None:
+            unified_log = UnifiedLog(log_path=log_path)
+        self.log = unified_log.getLogger("xmodem.{0}".format(micromodem.name))
+        self.target_id = dest
+        self.timeout = timeout
+        self.ymodem_mode = True
+
+    SOH = '0001'
+    STX = '0002'
+    EOT = '0004'
+    ACK = '0006'
+    DLE = '0010'
+    NAK = '0015'
+    CAN = '0018'
+    CRC = '0043'

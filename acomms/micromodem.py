@@ -850,38 +850,46 @@ class Micromodem(object):
     def detach_incoming_dataframe_queue(self, queue_to_detach):
         self.incoming_dataframe_queues.remove(queue_to_detach)
 
-    def wait_for_data_packet(self,timeout=30):
+    def wait_for_data_packet(self,fsk = False, timeout=30):
         data_frame_queue = Queue()
-        self._daemon_log.info("Waiting for CACYC")
+        self._daemon_log.info("wait_for_data_packet: Waiting for CACYC")
         self.wait_for_nmea_type(type_string='CACYC',timeout=timeout)
-        self._daemon_log.info("Got CACYC")
+        self._daemon_log.info("wait_for_data_packet: Got CACYC")
+        #If FSK packet, wait for secondary CACYC
+        if fsk:
+            #Wait for CST for CACYC
+            self._daemon_log.info("wait_for_data_packet: Waiting for CACYC CST")
+            cst = self.wait_for_cst(timeout=timeout)
+        #Wait for CST for Data packet.
         self.attach_incoming_dataframe_queue(data_frame_queue)
         cst = self.wait_for_cst(timeout=timeout)
         self.detach_incoming_dataframe_queue(data_frame_queue)
 
-        self._daemon_log.info("Processing Data Packets Received.")
+        self._daemon_log.info("wait_for_data_packet: Processing Data Packets Received.")
         data = bytearray()
         #Reject packet if some of the data didn't make it or if the message received wasn't for me.
         if cst is None or cst['bad_frames_num'] > 0 or cst['dest'] != self.id:
             self._daemon_log.warn("CST not valid. {}".format(cst))
             return None
         frame_count = cst['num_frames']
-        self._daemon_log.info("Number of Data Frames expected: {}".format(frame_count))
+        self._daemon_log.info("wait_for_data_packet: Number of Data Frames expected: {}".format(frame_count))
         while frame_count > 0:
             try:
                 data_frame = data_frame_queue.get(block=True,timeout=timeout)
             except Empty:
                 #Reject packet if not enough data frames were received.
-                self._daemon_log.info("Empty Dataframe Queue before total frames received. Frames Left:{}".format(frame_count))
+                self._daemon_log.info("wait_for_data_packet: Empty Dataframe Queue before total frames received. Frames Left:{}".format(frame_count))
                 return None
             #Reject data_frames not destined for me.
             if data_frame.dest != self.id:
-                self._daemon_log.info("Skipping data frame not destined for {}".format(self.id))
+                self._daemon_log.info("wait_for_data_packet: Skipping data frame not destined for {}".format(self.id))
                 continue
-
-            data.append(data_frame.data)
+            data.extend(data_frame.data)
+            self._daemon_log.info("wait_for_data_packet: Processed Frame #{}.".format(frame_count))
             frame_count = frame_count - 1
 
+
+        self._daemon_log.info("wait_for_data_packet: Returning Data ({}).".format(repr(data)))
         return data
 
     def attach_incoming_cst_queue(self, queue_to_attach):
