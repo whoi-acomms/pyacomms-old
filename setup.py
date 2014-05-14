@@ -37,6 +37,7 @@ setup(
         "timer2 >= 0.1.0",
         "enum >= 0.4.4",
         "apscheduler>=2.1.1",
+        "crcmod>=1.7"
     ],
     py_modules=['ez_setup'],
     classifiers=[
