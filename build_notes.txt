@@ -1,0 +1,11 @@
+#!/bin/bash
+
+
+#To build win 64 bit binary distibution
+python setup.py bdist --plat-name=win-amd64 --format=wininst
+#To build win-32 binary distibution
+python setup.py bdist --format=wininst
+#To build tar.gz source
+python setup.py sdist --format=gztar
+#To build zip source
+python setup.py sdist --format=zip
