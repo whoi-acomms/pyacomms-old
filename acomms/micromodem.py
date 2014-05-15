@@ -463,7 +463,7 @@ class Micromodem(object):
         frames = []
         for framenum in range(rate.numframes):
             startidx = (framenum * rate.framesize)
-            endidx = startidx + rate.framesize - 1
+            endidx = startidx + rate.framesize
             thisdata = databytes[startidx:endidx]
             
             if len(thisdata) > 0:
@@ -886,6 +886,7 @@ class Micromodem(object):
                 continue
             data.extend(data_frame.data)
             self._daemon_log.debug("wait_for_data_packet: Processed Frame #{}.".format(frame_count))
+            self._daemon_log.info("wait_for_data_packet: Frame Info: Dest{} Data:{}".format(data_frame.dest,repr(data_frame.data)))
             frame_count = frame_count - 1
 
 
