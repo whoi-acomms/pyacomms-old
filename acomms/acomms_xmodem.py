@@ -70,8 +70,8 @@ class acomms_xymodem(object):
             return data
         else:
             data = self.micromodem.wait_for_data_packet(fsk=self.fsk_mode,timeout=timeout)
-            while data is None:
-                data = self.micromodem.wait_for_data_packet(fsk=self.fsk_mode,timeout=timeout)
+            #while data is None:
+            #    data = self.micromodem.wait_for_data_packet(fsk=self.fsk_mode,timeout=timeout)
             if ack:
                 print("Waiting for Ack to Finish Transmitting")
                 self.micromodem.wait_for_xst(timeout=timeout)
@@ -192,7 +192,7 @@ class acomms_xymodem(object):
             assert hasattr(file_io,"read"), "Stream not readable. "
         assert timeout > delay, "Timeout is less than delay."
         if callback != None:
-            assert callable(callback), "Non-nulll callback isn't callable."
+            assert callable(callback), "Non-null callback isn't callable."
 
 
         # initialize protocol
@@ -215,7 +215,7 @@ class acomms_xymodem(object):
 
         while True:
             print("Waiting On Connection")
-            minipacket_data = self._receive_across_link(ack=False)
+            minipacket_data = self._receive_across_link(ack=False, timeout=timeout)
 
             if minipacket_data:
                 if minipacket_data == self.NAK:
@@ -236,9 +236,12 @@ class acomms_xymodem(object):
                 else:
                     print('send ERROR expected NAK/CRC, got %s' % (minipacket_data))
 
-            error_count += 1
-            if error_count >= retry:
-                self.abort(timeout=timeout)
+                error_count += 1
+                if error_count >= retry:
+                    self.abort(timeout=timeout)
+                    return False
+            else:
+                print("No Connection Received in {} secs. Timeout Connection.".format(timeout))
                 return False
 
         #Send Packet Header.
@@ -270,12 +273,12 @@ class acomms_xymodem(object):
             while True:
                 print("Starting Transmission")
                 self._send_across_link(data=self.STX,ack=False,timeout=None,delay=delay)
+                time.sleep(delay)
 
                 #Send our sequence number
                 sequence_num = sequence + self.SEQ_NUM_BIT_ID #Add Sequence Bit ID to the front.
                 print("Sending Sequence Number: {} ({})".format(sequence_num, "{:04X}".format(sequence_num)))
                 ok = self._send_across_link(data="{:04X}".format(sequence_num),ack=True,timeout=None,delay=delay)
-                #Since Modem is broken on larger than 8 bit mini-packets, send a real packet.
                 if not ok:
                     print('Sequence number not acked, Aborting')
                     self.abort(timeout=timeout)
