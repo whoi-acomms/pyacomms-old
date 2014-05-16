@@ -67,15 +67,15 @@ class acomms_xymodem(object):
                 self.micromodem.send_minipacket(dest_id=self.target_id,databytes=self.ACK)
                 self.micromodem.wait_for_xst(timeout)
                 time.sleep(delay)
+            return data
         else:
             data = self.micromodem.wait_for_data_packet(fsk=self.fsk_mode,timeout=timeout)
-            while data is not None:
+            while data is None:
                 data = self.micromodem.wait_for_data_packet(fsk=self.fsk_mode,timeout=timeout)
             if ack:
                 print("Waiting for Ack to Finish Transmitting")
                 self.micromodem.wait_for_xst(timeout=timeout)
-
-        return data
+            return data
 
     def _send_across_link(self,data,ack,timeout = None,delay = 3,force_packet = False, validate_packet=False):
         value = True
