@@ -7,7 +7,7 @@ from datetime import datetime
 
 
 class UnifiedLog(object):
-    def __init__(self, log_path=None, file_name=None, console_log_level=None, rootname=None):
+    def __init__(self, log_path=None, file_name=None, console_log_level=None, rootname=None, custom_handler=None):
 
         # Create the logger
         if rootname is not None:
@@ -24,6 +24,9 @@ class UnifiedLog(object):
             self._console_handler.setLevel(console_log_level)
             self._console_handler.setFormatter(self._logformat)
             self._log.addHandler(self._console_handler)
+
+        if custom_handler is not None:
+            self._log.addHandler(custom_handler)
 
         # If no log path is specified, use (or create) a directory in the user's home directory
         if log_path is None:

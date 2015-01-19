@@ -159,6 +159,9 @@ class MessageParser:
 
     def CAMPR(self, msg):
         '''Ping command reply'''
+        src = int(msg["params"][0])
+        dest = int(msg["params"][1])
+        owtt = float(msg["params"][2])
         pass
     
     def CAMUC(self, msg):

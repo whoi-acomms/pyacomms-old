@@ -7,10 +7,14 @@ from threading import Thread
 
 class TcpConnection(ModemConnection, asyncore.dispatcher_with_send):
 
-    def __init__(self,modem, ipaddr,port):
+    def __init__(self, modem, remote_host, remote_port):
+        # keep track of the connection parameters
+        self._remote_host = remote_host
+        self._remote_port = remote_port
+
         asyncore.dispatcher_with_send.__init__(self)
         self.create_socket(AF_INET, SOCK_STREAM)
-        self.connect((ipaddr,port))
+        self.connect((remote_host, remote_port))
         self.io_file = self.socket.makefile()
         self.modem = modem
 
@@ -21,6 +25,8 @@ class TcpConnection(ModemConnection, asyncore.dispatcher_with_send):
     def _listen(self):
         asyncore.loop()
 
+    def close(self):
+        self.handle_close()
 
     def is_connected(self):
         return True
