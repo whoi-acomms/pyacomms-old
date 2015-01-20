@@ -77,7 +77,8 @@ class UdpConnection(ModemConnection):
             if lines[-1][-1] != '\n':
                 self._incoming_line_buffer = lines[-1]
                 lines.pop() # remove it from the list to passed on
-
+            else:
+                self._incoming_line_buffer = ''
             # return the list of complete lines
             return lines
         else:
