@@ -243,27 +243,27 @@ class WaitingForDrq(CommState):
         # See if we have a downlink packet to send
         if self.modem.current_txpacket != None:
             # Make sure that this DRQ matches the packet we plan to send
-            if (drqparams.src == self.modem.current_txpacket.cycleinfo.src
-                    and drqparams.dest == self.modem.current_txpacket.cycleinfo.dest
-                    and drqparams.num_bytes == Rates[self.modem.current_txpacket.cycleinfo.rate_num].framesize
-                    and drqparams.frame_num == self.modem.current_tx_frame_num):
+            #if 1#(drqparams.src == self.modem.current_txpacket.cycleinfo.src
+            #        and drqparams.dest == self.modem.current_txpacket.cycleinfo.dest
+            #        and drqparams.num_bytes == Rates[self.modem.current_txpacket.cycleinfo.rate_num].framesize
+            #        and drqparams.frame_num == self.modem.current_tx_frame_num):
                 # Send the frame
-                self.modem._send_current_txframe()
+            self.modem._send_current_txframe()
                 
                 # Was this the last frame?
-                if drqparams.frame_num < self.modem.current_txpacket.cycleinfo.num_frames:
+            if drqparams.frame_num < self.modem.current_txpacket.cycleinfo.num_frames:
                     # It wasn't, so get ready to send the next frame.
-                    self.modem.current_tx_frame_num += 1
-                    self.modem._changestate(WaitingForDrq)
-                else:
-                    # That was the last frame, so wait for the packet to transmit
-                    self.modem._changestate(WaitingForTxf)
-                    
+                self.modem.current_tx_frame_num += 1
+                self.modem._changestate(WaitingForDrq)
             else:
+                    # That was the last frame, so wait for the packet to transmit
+                self.modem._changestate(WaitingForTxf)
+                    
+            #else:
                 # The DRQ we just received does not match the packet we have queued for transmit.
                 # Therefore, we don't know what state we're in.  Say that we failed and go back to Idle.
-                self.modem.on_packettx_failed()
-                self.modem._changestate(Idle)
+            #    self.modem.on_packettx_failed()
+            #    self.modem._changestate(Idle)
         else:
             # We don't have a current TX packet, so this is an uplink request
             

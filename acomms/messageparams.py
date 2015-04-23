@@ -106,6 +106,8 @@ Rates = {0:PacketRate('FH-FSK', 0, 32, 1),
 
 FDPRates = {1:PacketRate('BCH 128:8', 1, 100, 1),
             3:PacketRate('BCH 64:10', 3, 100, 1)}
+LDRRates = {7:PacketRate('BCH 64:10', 1, 260, 1)}
+
 
 
     

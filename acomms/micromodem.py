@@ -10,14 +10,14 @@ import logging
 import struct
 import timer2
 from collections import namedtuple
-from bitstring import BitArray
+#from bitstring import BitArray
 import hashlib
 from binascii import hexlify
 from serial import Serial
 
 import commstate
 from messageparser import MessageParser
-from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame,FDPRates
+from messageparams import Packet, CycleInfo, hexstring_from_data, Rates, DataFrame,FDPRates,LDRRates
 from acomms.modem_connections import SerialConnection
 from acomms.modem_connections import IridiumConnection
 from acomms.modem_connections import SBDEmailConnection
@@ -479,11 +479,14 @@ class Micromodem(object):
         # How many frames shall we send?
         if num_frames == None:
             num_frames = rate.numframes
-            
+
+        num_bytes = rate.framesize
+
         # Make frames
         frames = []
         for framenum in range(num_frames):
-            framedata = bytearray(struct.pack('!BBBBi', 0, 0, 1, 0, int(time())))
+            #framedata = bytearray(struct.pack('!BBBBi', 0, 0, 1, 0, int(time())))
+            framedata = bytearray(range(0,num_bytes-1,1))
             frame = DataFrame(src, dest, ack, framenum, framedata)
             frames.append(frame)
         
@@ -549,6 +552,16 @@ class Micromodem(object):
 
     def send_minipacket(self,dest_id,databytes=[]):
         msg = {'type':'CCMUC', 'params':[self.id, dest_id, databytes[0:4]]}
+        self.write_nmea(msg)
+
+    def send_ldr(self, dest_id=None,databytes=[], rate_num=None, ack=False,base64data=False):
+        rate = LDRRates[rate_num]
+        ack = int(ack)
+        hdrbytes=bytearray(range(0,4,1))
+        databytes=bytearray(range(0,rate.maxpacketsize-4,1))
+        # Build the CCTXL message
+        msg = {'type':'CCTXL', 'params':[0,hexstring_from_data(hdrbytes+databytes)]}
+
         self.write_nmea(msg)
 
     def send_tdp(self, dest_id=None,databytes=[], rate_num=None, ack=False,base64data=False):
