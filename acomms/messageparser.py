@@ -383,6 +383,18 @@ class MessageParser:
     def SNMFD(self,msg):
         pass
 
+    def CASED(self,msg):
+        pass
+
+    def CASEL(self,msg):
+        pass
+
+    def CASWT(self,msg):
+        pass
+
+    def CASDO(self,msg):
+        pass
+
     def SNUTX(self,msg):
         pass
 

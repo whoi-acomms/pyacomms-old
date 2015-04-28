@@ -846,6 +846,14 @@ class Micromodem(object):
 
         return (modem_time, clock_source, pps_source)
 
+    def send_script_line(self, linenum=0, editor_cmd=1, nmea_string=0):
+        self._daemon_log.debug("Sending CCSED with Following Parameters: %s" % (str([linenum, editor_cmd,
+                                                                                     nmea_string])))
+        # Build the corresponding CCSED message
+        msg = {'type':'CCSED', 'params':[linenum, editor_cmd, nmea_string]}
+
+        self.write_nmea(msg)
+
 
     def wait_for_minipacket(self,timeout=30):
         data = None
