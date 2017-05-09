@@ -67,7 +67,24 @@ class DataFrame(object):
 
     def __repr__(self):
         return "SRC: {} DST: {} ACK: {} FRAME#: {} BAD_CRC: {} DATA: {}".format(self.src,self.dest,self.ack,self.frame_num, self.bad_crc, repr(self.data))
-        
+
+class CCPGT(object):
+    def __init__(self, txfreq, txcode,timeout_ms,  codelen, rxfreq, rxcode1, rxcode2, rxcode3, rxcode4, reserved1=0,reserved2=0):
+        self.txfreq = txfreq
+        self.codelen = codelen
+        self.txcode = txcode
+        self.timeout_ms = timeout_ms
+        self.rxfreq = rxfreq
+        self.rxcode1 = rxcode1
+        self.rxcode2 = rxcode2
+        self.rxcode3 = rxcode3
+        self.rxcode4 = rxcode4
+        self.reserved1 = reserved1
+        self.reserved2 = reserved2
+
+        def __repr__(self):
+            return "TXHz: {} RXHz: {} TXCODE: {}".format(self.txfreq,self.rxfreq,self.txcode)
+
 class Packet(object):
     def __init__(self, cycleinfo, frames=None):
         self.cycleinfo = cycleinfo
@@ -104,9 +121,15 @@ Rates = {0:PacketRate('FH-FSK', 0, 32, 1),
          5:PacketRate('Hamming 14:9', 5, 256, 8),
          6:PacketRate('DSS 1/15 (32B frames)', 6, 32, 6)}
 
-FDPRates = {1:PacketRate('BCH 128:8', 1, 100, 1),
-            3:PacketRate('BCH 64:10', 3, 100, 1)}
+FDPMiniRates = {1:PacketRate('BCH 128:8', 1, 64, 1),
+            3:PacketRate('BCH 64:10', 3, 60, 1),
+            5:PacketRate('Hamming 14:9', 5, 55, 1)}
+FDPDataRates = {1:PacketRate('BCH 128:8', 1, 64, 3),
+                3:PacketRate('BCH 64:10', 3, 100, 1),
+                5:PacketRate('Hamming 14:9', 5, 256, 8)}
 LDRRates = {7:PacketRate('BCH 64:10', 1, 260, 1)}
+
+
 
 
 

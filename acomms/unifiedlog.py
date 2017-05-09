@@ -44,10 +44,15 @@ class UnifiedLog(object):
 
         log_file_path = os.path.join(log_path, file_name)
 
+        self.log_file_name = log_file_path
+
         self._file_handler = logging.FileHandler(log_file_path)
         self._file_handler.setLevel(logging.DEBUG)
         self._file_handler.setFormatter(self._logformat)
         self._log.addHandler(self._file_handler)
+
+    def log_file_path(self): #Added to try and help error in downlinktest_all.py -Dana
+        return self.log_file_name
 
     def getLogger(self, name):
         return self._log.getChild(name)

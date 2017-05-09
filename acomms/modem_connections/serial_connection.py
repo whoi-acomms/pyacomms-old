@@ -38,6 +38,7 @@ class SerialConnection(ModemConnection):
 
 
     def close(self):
+        self._listen.stop()
         self._serialport.close()
 
     def _listen(self):

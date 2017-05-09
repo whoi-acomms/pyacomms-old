@@ -6,7 +6,7 @@ Created on Jan 25, 2012
 
 from messageparams import Packet, Rates, DataFrame
 
-import timer2
+import threading
 
 class CommState(object):
     '''
@@ -18,17 +18,23 @@ class CommState(object):
 
     def __init__(self, modem):
         self.modem = modem
+        self.state_timer = None
 
 
     def entering(self):
         self.modem._daemon_log.debug("Entering new state: " + str(self))
 
         # Stop any timeout timer that is currently running.
-        self.modem.state_timer.clear()
+        try:
+            self.modem.state_timer.cancel()
+        except:
+            pass
+
+        self.state_timer = None
 
         # Start a new timeout timer, if this state requires one.
         if self.timeout_seconds:
-            self.modem.state_timer.apply_after(self.timeout_seconds * 1000, self.timeout)
+            self.state_timer = threading.Timer(self.timeout_seconds, self.timeout)
 
 
     def got_cacyc(self, cycleinfo):
