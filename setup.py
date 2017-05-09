@@ -21,7 +21,7 @@ def read(fname):
 
 setup(
     name='acomms',
-    version='0.7.0',
+    version='0.8.0',
     author='Eric Gallimore, Andrew Beal',
     author_email='pyacomms@whoi.edu',
     packages=['acomms', 'acomms.modem_connections', 'bin',],
@@ -34,8 +34,6 @@ setup(
         "pyserial >= 2.6",
         "isodate >= 0.4.9",
         "python-dateutil >= 2.1",
-        "timer2 >= 0.1.0",
-        "enum >= 0.4.4",
         "apscheduler>=2.1.1",
         "crcmod>=1.7"
     ],

@@ -53,11 +53,11 @@ class AppForm(QMainWindow):
         self.cst_dol = cst_list.to_dict_of_lists()
         
         
-              
-        self.table.setColumnCount(len(cst_list[0]))
-        self.table.setRowCount(len(cst_list))
-        # Optional, set the labels that show on top
-        self.table.setHorizontalHeaderLabels(CycleStats.fields)
+        if len(cst_list) > 0:
+            self.table.setColumnCount(len(cst_list[0]))
+            self.table.setRowCount(len(cst_list))
+            # Optional, set the labels that show on top
+            self.table.setHorizontalHeaderLabels(CycleStats.fields)
         
         for row_num in range(len(cst_list)):
             for col_num in range(len(CycleStats.fields)):
@@ -246,7 +246,7 @@ class AppForm(QMainWindow):
         self.setCentralWidget(self.main_frame)
     
     def create_status_bar(self):
-        self.status_text = QLabel("This is a demo")
+        self.status_text = QLabel("Loaded CSTs")
         self.statusBar().addWidget(self.status_text, 1)
         
     def create_menu(self):        

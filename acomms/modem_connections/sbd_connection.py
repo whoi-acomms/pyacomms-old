@@ -13,11 +13,11 @@ import datetime
 
 class SBDEmailConnection(ModemConnection):
     def __init__(self, modem, IMEI,
-                 email_account='acomms-sbd@whoi.edu',
+                 email_account='',
                  username = None,pw = None,
                  check_rate_min = 5,
-                 imap_srv = "imap.whoi.edu", imap_port = 143,
-                 smtp_svr = "outbox.whoi.edu", smtp_port = 25, DoD=False):
+                 imap_srv = "", imap_port = 143,
+                 smtp_svr = "", smtp_port = 25, DoD=False):
         self.modem = modem
         self.SUBJECT = IMEI
         self.FROM = email_account

@@ -8,14 +8,14 @@ unified_log = unifiedlog.UnifiedLog(log_path="C:\\Users\\andrew\\acomms_logs", c
 
 modem = Micromodem(name='imei4840', unified_log=unified_log)
 
-modem.connect_sbd_email(IMEI=300125010114840,username='acomms-sbd',
-                        pw='3meXDffhJsnm!',
+modem.connect_sbd_email(IMEI=,username='',
+                        pw='',
                         check_rate_sec=60, DoD = True)
 
 modem2 = Micromodem(name='imei7830', unified_log=unified_log)
 
-modem2.connect_sbd_email(IMEI=300125010117830,username='acomms-sbd',
-                        pw='3meXDffhJsnm!',
+modem2.connect_sbd_email(IMEI=,username='',
+                        pw='',
                         check_rate_sec=60, DoD = True)
 
 

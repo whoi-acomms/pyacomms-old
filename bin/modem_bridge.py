@@ -1,9 +1,10 @@
 import argparse
 from Queue import Queue
-from acomms import Micromodem, nmeaChecksum
+from acomms import Micromodem, nmeaChecksum, unifiedlog
 from twisted.internet import reactor
 from twisted.internet.protocol import ServerFactory
 from twisted.protocols.basic import LineReceiver
+import logging
 
 
 class BridgeProtocol(LineReceiver):
@@ -42,11 +43,12 @@ class ModemBridge(object):
         message = "$" + message.lstrip('$').rstrip('\r\n*') + "*" + chk
 
         for client in self.factory.clients:
-            client.sendLine(message)
+            reactor.callFromThread(client.sendLine,message)
         pass
 
     def connect_to_iridium(self, number, port, baudrate):
-        self.modem = Micromodem()
+        unified_log = unifiedlog.UnifiedLog(console_log_level=logging.INFO)
+        self.modem = Micromodem(unified_log=unified_log)
         self.modem.connect_iridium(number, port, baudrate)
 
         # Now, attach to NMEA message events.
@@ -75,8 +77,9 @@ if __name__ == '__main__':
     #ap.add_argument("-l", "--logfile", help="Save log with specified name")
     ap.add_argument("iridium_number", help="Iridium phone number to dial")
     ap.add_argument("iridium_serial_port", help="Iridium modem serial port")
-    ap.add_argument("iridium_baud", help="Iridium modem baud rate");
+    ap.add_argument("iridium_baud", help="Iridium modem baud rate")
     ap.add_argument("tcp_server_port", help="Listen on this port")
+
 
     args = ap.parse_args()
 

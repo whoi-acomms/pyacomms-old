@@ -19,20 +19,35 @@ class MessageParser:
     def parse(self, msg):
         try:
             func = getattr(self, msg['type'])
-        except AttributeError, e:
+        except AttributeError as e:
             self.modem._daemon_log.warn('Unrecognized message: ' + str(msg['type']))
             func = None
         try:
             if func != None:
                 return func(msg)
-        except Exception, e:
+        except Exception as e:
             self.modem._daemon_log.error("Exception when parsing: " + str(sys.exc_info()[0]))
             traceback.print_exc()
 
     def GPRMC(self,msg):
         pass
 
+    def CASFE(self,msg):
+        pass
+
+    def CASEN(self,msg):
+        pass
+
+    def CASIF(self,msg):
+        pass
+
+    def CASFL(self,msg):
+        pass
+
     def PUBX(self,msg):
+        pass
+
+    def SNPGT(self,msg):
         pass
 
     def CACFG(self, msg):
@@ -145,7 +160,7 @@ class MessageParser:
 
             # Raise the event
             self.modem.on_xst(xst, msg)
-        except Exception, ex:
+        except Exception as ex:
             self.modem._daemon_log.error("Error parsing XST: " + str(sys.exc_info()[0]))
         pass
     
@@ -231,7 +246,18 @@ class MessageParser:
             #TODO: This probably shouldn't be part of this module.
             os.system('/bin/date -u ' + datestr)
             self.modem.set_host_clock_flag = False
-    
+
+    def CACLQ(self, msg):
+        # $CACLK,yyyy,MM,dd,HH,mm,ss
+        args = msg["params"]
+        datestr = "{:0>2d}{:0>2d}{:0>2d}{:0>2d}{:0>4d}.{:0>2d}".format(int(args[1]), int(args[2]), int(args[3]), int(args[4]), int(args[0]), int(args[5]))
+        if self.modem.set_host_clock_flag == True:
+            self.modem._daemon_log.warn("Setting host clock to: " + datestr)
+            #TODO: This probably shouldn't be part of this module.
+            os.system('/bin/date -u ' + datestr)
+            self.modem.set_host_clock_flag = False
+
+
     def CACST(self, msg):
 
         try:
@@ -239,7 +265,7 @@ class MessageParser:
 
             # Raise the event
             self.modem.on_cst(cst, msg)
-        except Exception, ex:
+        except Exception as ex:
             self.modem._daemon_log.error("Error parsing CST: " + str(sys.exc_info()[0]))
             raise
 
